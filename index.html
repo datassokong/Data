@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telemedicine Dashboard – อำเภอกงไกรลาศ</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg-deep:    #0d0a2e;
+    --bg-mid:     #111854;
+    --bg-light:   #1a2a6c;
+    --accent1:    #6c63ff;
+    --accent2:    #00c6ff;
+    --accent3:    #43e97b;
+    --accent4:    #f7971e;
+    --glass-bg:   rgba(255,255,255,0.07);
+    --glass-border: rgba(255,255,255,0.15);
+    --text-white:  #ffffff;
+    --text-muted:  rgba(255,255,255,0.55);
+    --shadow:      0 8px 32px rgba(0,0,0,0.35);
+    --radius:      24px;
+    --radius-sm:   14px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Sarabun', sans-serif;
+    background: linear-gradient(135deg, #0d0a2e 0%, #111854 40%, #1a2a6c 70%, #0a3d6b 100%);
+    min-height: 100vh;
+    color: var(--text-white);
+    overflow-x: hidden;
+  }
+
+  /* Animated background orbs */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::before {
+    width: 520px; height: 520px;
+    background: radial-gradient(circle, rgba(108,99,255,0.25), transparent 70%);
+    top: -120px; left: -100px;
+    animation: orb1 12s ease-in-out infinite alternate;
+  }
+  body::after {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,198,255,0.2), transparent 70%);
+    bottom: -80px; right: -60px;
+    animation: orb2 15s ease-in-out infinite alternate;
+  }
+  @keyframes orb1 { to { transform: translate(60px, 40px) scale(1.1); } }
+  @keyframes orb2 { to { transform: translate(-40px, -60px) scale(1.15); } }
+
+  /* ── Layout ── */
+  .wrapper { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+
+  /* ── Header ── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 16px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius);
+    padding: 22px 32px;
+    margin-bottom: 28px;
+    box-shadow: var(--shadow);
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo-icon {
+    width: 52px; height: 52px;
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    box-shadow: 0 4px 18px rgba(108,99,255,0.45);
+    flex-shrink: 0;
+  }
+  .header-title h1 { font-size: clamp(1.1rem,3vw,1.55rem); font-weight: 800; letter-spacing: -0.3px; }
+  .header-title p  { font-size: 0.82rem; color: var(--text-muted); margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .date-badge {
+    background: rgba(0,198,255,0.12);
+    border: 1px solid rgba(0,198,255,0.3);
+    border-radius: 999px;
+    padding: 6px 18px;
+    font-size: 0.82rem;
+    color: var(--accent2);
+    font-weight: 600;
+  }
+  .refresh-btn {
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    border: none; border-radius: 999px;
+    color: #fff; font-family: 'Sarabun', sans-serif;
+    font-size: 0.82rem; font-weight: 700;
+    padding: 8px 22px; cursor: pointer;
+    transition: opacity .2s, transform .15s;
+    box-shadow: 0 4px 16px rgba(108,99,255,0.4);
+  }
+  .refresh-btn:hover { opacity: .88; transform: translateY(-1px); }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    display: flex; gap: 10px; margin-bottom: 28px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius);
+    padding: 8px;
+    box-shadow: var(--shadow);
+  }
+  .tab-btn {
+    flex: 1; border: none; cursor: pointer;
+    border-radius: var(--radius-sm);
+    padding: 12px 10px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 0.9rem; font-weight: 700;
+    transition: all .25s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: transparent; color: var(--text-muted);
+  }
+  .tab-btn.active {
+    background: linear-gradient(135deg, var(--accent1), var(--accent2));
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(108,99,255,0.45);
+  }
+  .tab-btn:not(.active):hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+  /* ── Panels ── */
+  .panel { display: none; animation: fadeIn .4s ease; }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+
+  /* ── Summary Cards ── */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
+  .summary-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(18px);
+    border-radius: var(--radius);
+    padding: 24px 22px;
+    box-shadow: var(--shadow);
+    transition: transform .2s, box-shadow .2s;
+    cursor: default;
+    position: relative; overflow: hidden;
+  }
+  .summary-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .summary-card.c1::before { background: linear-gradient(90deg, var(--accent1), var(--accent2)); }
+  .summary-card.c2::before { background: linear-gradient(90deg, var(--accent2), var(--accent3)); }
+  .summary-card.c3::before { background: linear-gradient(90deg, var(--accent3), var(--accent4)); }
+  .summary-card.c4::before { background: linear-gradient(90deg, var(--accent4), var(--accent1)); }
+  .summary-card:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.4); }
+  .card-icon { font-size: 1.8rem; margin-bottom: 10px; }
+  .card-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .card-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .card-delta { display: inline-block; font-size: 0.78rem; font-weight: 700; margin-top: 8px; padding: 3px 10px; border-radius: 999px; }
+  .delta-up   { background: rgba(67,233,123,0.15); color: var(--accent3); }
+  .delta-down { background: rgba(253,99,107,0.15); color: #fd636b; }
+  .delta-zero { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+  .card-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
+
+  /* ── Section Title ── */
+  .section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1rem; font-weight: 700;
+    margin-bottom: 16px; color: var(--accent2);
+  }
+  .section-title::after { content:''; flex:1; height:1px; background: var(--glass-border); }
+
+  /* ── Bar Chart Card ── */
+  .chart-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(18px);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+  }
+  .chart-card canvas { max-height: 340px; }
+
+  /* ── District Table ── */
+  .table-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(18px);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    margin-bottom: 28px;
+  }
+  .table-card table { width: 100%; border-collapse: collapse; }
+  .table-card thead tr { background: rgba(108,99,255,0.18); }
+  .table-card th {
+    padding: 14px 18px; text-align: left;
+    font-size: 0.78rem; font-weight: 700;
+    color: var(--accent2); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.4;
+  }
+  .table-card td {
+    padding: 13px 18px; font-size: 0.88rem;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  .table-card tbody tr { transition: background .15s; }
+  .table-card tbody tr:hover { background: rgba(255,255,255,0.05); }
+  .highlight-row { background: rgba(108,99,255,0.1) !important; }
+  .tag-up   { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; background:rgba(67,233,123,0.15); color:var(--accent3); }
+  .tag-down { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; background:rgba(253,99,107,0.15); color:#fd636b; }
+  .tag-zero { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:600; background:rgba(255,255,255,0.06); color:var(--text-muted); }
+
+  /* ── Loading / Error ── */
+  .loading-state {
+    text-align: center; padding: 60px 20px;
+    color: var(--text-muted); font-size: 1rem;
+  }
+  .spinner {
+    width: 44px; height: 44px;
+    border: 4px solid rgba(255,255,255,0.1);
+    border-top-color: var(--accent2);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Progress bar ── */
+  .bar-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .bar-name { font-size:.82rem; min-width:130px; color:var(--text-muted); }
+  .bar-outer { flex:1; height:9px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; }
+  .bar-inner { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); transition: width .6s ease; }
+  .bar-val { font-size:.82rem; font-weight:700; min-width:70px; text-align:right; }
+
+  /* ── Footer ── */
+  .footer { text-align:center; font-size:.75rem; color:var(--text-muted); margin-top:36px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.07); }
+
+  @media(max-width:520px) {
+    .header { padding:16px 18px; }
+    .chart-card, .table-card { padding: 18px 10px; }
+    .table-card th, .table-card td { padding: 11px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-icon">🏥</div>
+      <div class="header-title">
+        <h1>Telemedicine Dashboard</h1>
+        <p>เครือข่ายอำเภอกงไกรลาศ · จังหวัดสุโขทัย</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="date-badge" id="dateBadge">⏳ กำลังโหลด…</div>
+      <button class="refresh-btn" onclick="loadAllData()">🔄 รีเฟรช</button>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 ข้อมูล HDC</button>
+    <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ ข้อมูล กสป</button>
+  </div>
+
+  <div class="panel active" id="panel-hdc">
+    <div id="hdc-content">
+      <div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูลจาก Google Sheets…</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-ksp">
+    <div id="ksp-content">
+      <div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    ข้อมูลจาก Google Sheets · ระบบตรวจจับคอลัมน์อัจฉริยะ (ทะลุ Merge Cells) · Telemedicine Dashboard v4.1
+  </div>
+</div>
+
+<script>
+/* ── CONFIG ── */
+const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
+const SHEET_HDC = 'HDC';
+const SHEET_KSP = 'กสป';
+
+let hdcData = [], kspData = [];
+let hdcChart = null, kspChart = null;
+
+/* ══ FETCH FROM GOOGLE SHEETS ══ */
+async function fetchSheet(sheetName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  
+  return new Promise((resolve, reject) => {
+    Papa.parse(text, {
+      header: false,
+      skipEmptyLines: true,
+      complete: (results) => resolve(results.data),
+      error: (err) => reject(err)
+    });
+  });
+}
+
+function num(v) {
+  if (v == null || v === '') return 0;
+  const n = parseFloat(String(v).replace(/,/g,''));
+  return isNaN(n) ? 0 : n;
+}
+
+/* ══ DATE ══ */
+function updateDate() {
+  const d = new Date();
+  const opts = { year:'numeric', month:'long', day:'numeric', weekday:'long', timeZone:'Asia/Bangkok' };
+  document.getElementById('dateBadge').textContent =
+    '📅 ' + d.toLocaleDateString('th-TH', opts);
+}
+
+/* ══ SWITCH TAB ══ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+/* ══════════════════════════════════
+   RENDER HDC PANEL (SMART COLUMN DETECT 2.0)
+══════════════════════════════════ */
+function renderHDC(rows) {
+  if (!rows || rows.length < 2) {
+    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูลในชีต HDC');
+    return;
+  }
+
+  // 1. หาจุดเริ่มต้นของข้อมูลจริง (แถวแรกที่มีชื่อ รพ. หรือ รพ.สต.)
+  let dataStartIndex = 1; 
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    if (rows[i].some(cell => cell && (cell.includes('รพ.') || cell.includes('กงไกรลาศ') || cell.includes('สถานบริการ')))) {
+      dataStartIndex = i;
+      break;
+    }
+  }
+
+  // 2. สร้าง Header อัจฉริยะ (แก้ปัญหา Merge Cells คำว่า 'ผลงาน')
+  let header = [];
+  let maxCols = 0;
+  for(let i=0; i<=dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
+
+  for (let c = 0; c < maxCols; c++) {
+    let colName = '';
+    for (let r = 0; r < dataStartIndex; r++) {
+      if (rows[r][c] && rows[r][c].trim() !== '') {
+        colName = rows[r][c].trim(); // อัปเดตทับด้วยค่าบรรทัดที่ต่ำกว่า (จะดึงวันที่มาแทนคำว่าผลงาน)
+      }
+    }
+    header[c] = colName;
+  }
+
+  // หาว่าคอลัมน์ไหนคือรายชื่อสถานบริการ
+  const headerLower = header.map(h => (h||'').toLowerCase());
+  let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
+  if (colDistrict === -1) colDistrict = 0;
+
+  // 3. หาคอลัมน์ล่าสุดและก่อนหน้า
+  let colLatest = header.length - 1;
+  while(colLatest > colDistrict && (!header[colLatest] || header[colLatest] === '' || header[colLatest].toLowerCase() === 'ผลงาน')) {
+    colLatest--;
+  }
+  let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
+
+  // กรองเอาเฉพาะแถวข้อมูล (ตัดแถว 'รวม' ด้านล่างทิ้ง เพื่อให้คำนวณเองแม่นยำกว่า)
+  const data = rows.slice(dataStartIndex).filter(r => 
+    r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
+  );
+
+  // คำนวณยอด 
+  let totAll = 0, prevAll = 0;
+  let totRph = 0, totHos = 0;
+  let myTotal = 0, myPrev = 0;
+
+  // เช็คว่าเป็นตารางแยกราย รพ. (แบบใหม่) หรือรวมรายอำเภอ (แบบเก่า)
+  const isHospitalRowFormat = data.some(r => r[colDistrict] && r[colDistrict].includes('รพ.สต'));
+
+  data.forEach(r => {
+    const valLatest = num(r[colLatest]);
+    const valPrev = num(r[colPrev]);
+    const name = r[colDistrict] || '';
+    
+    totAll += valLatest;
+    prevAll += valPrev;
+
+    // ถ้าตารางเป็นราย รพ. (แบบใหม่) ให้เช็คจากชื่อแถวเพื่อบวกสัดส่วน
+    if (isHospitalRowFormat) {
+      if (name.includes('รพ.สต')) totHos += valLatest;
+      else if (name.includes('รพ.')) totRph += valLatest;
+    }
+
+    if (name.includes('กงไกรลาศ')) {
+      myTotal += valLatest;
+      myPrev += valPrev;
+    }
+  });
+
+  const totDelta = totAll - prevAll;
+  const myDelta = myTotal - myPrev;
+
+  document.getElementById('hdc-content').innerHTML = `
+    <div class="summary-grid">
+      ${summaryCard('🏥','ยอดรวมทั้งหมด (HDC)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
+      ${summaryCard('🏢','เฉพาะ รพ. (HDC)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
+      ${summaryCard('🏘️','เฉพาะ รพ.สต. (HDC)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
+      ${summaryCard('📍','รพ.กงไกรลาศ (HDC)', myTotal.toLocaleString(), myDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c4')}
+    </div>
+
+    <div class="section-title">📊 กราฟผลรวมรายหน่วยบริการ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
+    <div class="chart-card">
+      <canvas id="hdcBarChart"></canvas>
+    </div>
+
+    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (HDC)</div>
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th>#</th><th>สถานบริการ</th>
+          <th>ยอดก่อนหน้า<br><span style="font-size:0.65rem;opacity:0.7">${header[colPrev]||'ก่อนหน้า'}</span></th>
+          <th>ยอดล่าสุด<br><span style="font-size:0.65rem;color:var(--accent3)">${header[colLatest]||'ล่าสุด'}</span></th>
+          <th>ส่วนต่าง</th>
+        </tr></thead>
+        <tbody id="hdc-tbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  // เรียงลำดับตามยอดล่าสุด
+  const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
+  const tbody = document.getElementById('hdc-tbody');
+
+  sorted.forEach((r, i) => {
+    const district = r[colDistrict] || '';
+    const prev = num(r[colPrev]);
+    const tot  = num(r[colLatest]);
+    const del  = tot - prev;
+    const isMe = district.includes('กงไกรลาศ');
+
+    let badge = `<span class="tag-zero">±0</span>`;
+    if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
+    else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
+
+    tbody.innerHTML += `
+      <tr class="${isMe?'highlight-row':''}">
+        <td style="color:var(--text-muted)">${i+1}</td>
+        <td><strong>${district}</strong> ${isMe?'<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>':''}</td>
+        <td>${prev.toLocaleString()}</td>
+        <td><strong>${tot.toLocaleString()}</strong></td>
+        <td>${badge}</td>
+      </tr>`;
+  });
+
+  // สร้าง Chart
+  if (hdcChart) hdcChart.destroy();
+  const ctx = document.getElementById('hdcBarChart').getContext('2d');
+  const labels = sorted.map(r => r[colDistrict]||'');
+  const values = sorted.map(r => num(r[colLatest]));
+  const colors = labels.map(l => l.includes('กงไกรลาศ') ? 'rgba(108,99,255,0.9)' : 'rgba(0,198,255,0.55)');
+  
+  hdcChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: colors, borderRadius: 8 }] },
+    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
+      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
+    }
+  });
+}
+
+/* ══════════════════════════════════
+   RENDER กสป PANEL (SMART COLUMN DETECT 2.0)
+══════════════════════════════════ */
+function renderKSP(rows) {
+  if (!rows || rows.length < 2) {
+    document.getElementById('ksp-content').innerHTML = errorHTML('ไม่พบข้อมูลในชีต กสป');
+    return;
+  }
+
+  let dataStartIndex = 1; 
+  for (let i = 0; i < Math.min(5, rows.length); i++) {
+    if (rows[i].some(cell => cell && (cell.includes('รพ.') || cell.includes('กงไกรลาศ') || cell.includes('สถานบริการ')))) {
+      dataStartIndex = i;
+      break;
+    }
+  }
+
+  let header = [];
+  let maxCols = 0;
+  for(let i=0; i<=dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
+
+  for (let c = 0; c < maxCols; c++) {
+    let colName = '';
+    for (let r = 0; r < dataStartIndex; r++) {
+      if (rows[r][c] && rows[r][c].trim() !== '') {
+        colName = rows[r][c].trim();
+      }
+    }
+    header[c] = colName;
+  }
+
+  const headerLower = header.map(h => (h||'').toLowerCase());
+  let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
+  if (colDistrict === -1) colDistrict = 0;
+
+  let colLatest = header.length - 1;
+  while(colLatest > colDistrict && (!header[colLatest] || header[colLatest] === '' || header[colLatest].toLowerCase() === 'ผลงาน')) {
+    colLatest--;
+  }
+  let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
+
+  const data = rows.slice(dataStartIndex).filter(r => 
+    r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
+  );
+
+  let totAll = 0, prevAll = 0;
+  let totRph = 0, totHos = 0;
+  let myTotal = 0, myPrev = 0;
+  const isHospitalRowFormat = data.some(r => r[colDistrict] && r[colDistrict].includes('รพ.สต'));
+
+  data.forEach(r => {
+    const valLatest = num(r[colLatest]);
+    const valPrev = num(r[colPrev]);
+    const name = r[colDistrict] || '';
+    
+    totAll += valLatest;
+    prevAll += valPrev;
+
+    if (isHospitalRowFormat) {
+      if (name.includes('รพ.สต')) totHos += valLatest;
+      else if (name.includes('รพ.')) totRph += valLatest;
+    }
+
+    if (name.includes('กงไกรลาศ')) {
+      myTotal += valLatest;
+      myPrev += valPrev;
+    }
+  });
+
+  const totDelta = totAll - prevAll;
+  const myDelta = myTotal - myPrev;
+
+  document.getElementById('ksp-content').innerHTML = `
+    <div class="summary-grid">
+      ${summaryCard('🏥','ยอดรวมทั้งหมด (กสป)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
+      ${summaryCard('🏢','เฉพาะ รพ. (กสป)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
+      ${summaryCard('🏘️','เฉพาะ รพ.สต. (กสป)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
+      ${summaryCard('📍','รพ.กงไกรลาศ (กสป)', myTotal.toLocaleString(), myDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c4')}
+    </div>
+
+    <div class="section-title">📊 กราฟผลรวมรายหน่วยบริการ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
+    <div class="chart-card">
+      <canvas id="kspBarChart"></canvas>
+    </div>
+
+    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (กสป)</div>
+    <div class="table-card">
+      <table>
+        <thead><tr>
+          <th>#</th><th>สถานบริการ</th>
+          <th>ยอดก่อนหน้า<br><span style="font-size:0.65rem;opacity:0.7">${header[colPrev]||'ก่อนหน้า'}</span></th>
+          <th>ยอดล่าสุด<br><span style="font-size:0.65rem;color:var(--accent3)">${header[colLatest]||'ล่าสุด'}</span></th>
+          <th>ส่วนต่าง</th>
+        </tr></thead>
+        <tbody id="ksp-tbody"></tbody>
+      </table>
+    </div>
+  `;
+
+  const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
+  const tbody = document.getElementById('ksp-tbody');
+
+  sorted.forEach((r, i) => {
+    const district = r[colDistrict] || '';
+    const prev = num(r[colPrev]);
+    const tot  = num(r[colLatest]);
+    const del  = tot - prev;
+    const isMe = district.includes('กงไกรลาศ');
+
+    let badge = `<span class="tag-zero">±0</span>`;
+    if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
+    else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
+
+    tbody.innerHTML += `
+      <tr class="${isMe?'highlight-row':''}">
+        <td style="color:var(--text-muted)">${i+1}</td>
+        <td><strong>${district}</strong> ${isMe?'<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>':''}</td>
+        <td>${prev.toLocaleString()}</td>
+        <td><strong>${tot.toLocaleString()}</strong></td>
+        <td>${badge}</td>
+      </tr>`;
+  });
+
+  if (kspChart) kspChart.destroy();
+  const ctx = document.getElementById('kspBarChart').getContext('2d');
+  const labels = sorted.map(r => r[colDistrict]||'');
+  const values = sorted.map(r => num(r[colLatest]));
+  // ใช้สีม่วงเข้มเพื่อให้แยกกับหน้า HDC ชัดเจน
+  const colors = labels.map(l => l.includes('กงไกรลาศ') ? 'rgba(108,99,255,0.9)' : 'rgba(162,96,233,0.55)');
+  
+  kspChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: colors, borderRadius: 8 }] },
+    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
+      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
+    }
+  });
+}
+
+/* ══ Helpers ══ */
+function summaryCard(icon, label, val, delta, sub, cls) {
+  let dStr = `<span class="card-delta delta-zero">±0</span>`;
+  if (delta > 0) dStr = `<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`;
+  else if (delta < 0) dStr = `<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`;
+  
+  return `
+    <div class="summary-card ${cls}">
+      <div class="card-icon">${icon}</div>
+      <div class="card-label">${label}</div>
+      <div class="card-value">${val}</div>
+      ${dStr}
+      <div class="card-sub">${sub}</div>
+    </div>`;
+}
+
+function errorHTML(msg) {
+  return `<div class="loading-state">
+    <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+    <p style="color:#ff6b6b">${msg}</p>
+    <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
+      โปรดตรวจสอบว่า Google Sheet ไปที่ "ไฟล์" > "แชร์" > "เผยแพร่ทางเว็บ" แล้ว
+    </p>
+    <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
+  </div>`;
+}
+
+/* ══ LOAD ALL ══ */
+async function loadAllData() {
+  updateDate();
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล HDC…</div>';
+  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
+
+  try {
+    hdcData = await fetchSheet(SHEET_HDC);
+    renderHDC(hdcData);
+  } catch(e) {
+    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล HDC ไม่สำเร็จ: ' + e.message);
+  }
+
+  try {
+    kspData = await fetchSheet(SHEET_KSP);
+    renderKSP(kspData);
+  } catch(e) {
+    document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: ' + e.message);
+  }
+}
+
+/* ══ INIT ══ */
+loadAllData();
+</script>
+</body>
+</html>
