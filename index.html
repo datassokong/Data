@@ -286,7 +286,7 @@
   </div>
 
   <div class="footer">
-    ข้อมูลจาก Google Sheets · ระบบตรวจจับคอลัมน์อัจฉริยะ (ทะลุ Merge Cells) · Telemedicine Dashboard v4.1
+    ข้อมูลจาก Google Sheets · ระบบตรวจจับคอลัมน์อัจฉริยะ 2.0 · Telemedicine Dashboard v4.2
   </div>
 </div>
 
@@ -339,7 +339,7 @@ function switchTab(name, btn) {
 }
 
 /* ══════════════════════════════════
-   RENDER HDC PANEL (SMART COLUMN DETECT 2.0)
+   RENDER HDC PANEL (FIXED DATA ROW DETECT)
 ══════════════════════════════════ */
 function renderHDC(rows) {
   if (!rows || rows.length < 2) {
@@ -347,31 +347,34 @@ function renderHDC(rows) {
     return;
   }
 
-  // 1. หาจุดเริ่มต้นของข้อมูลจริง (แถวแรกที่มีชื่อ รพ. หรือ รพ.สต.)
+  // 1. หาจุดเริ่มต้นของข้อมูลจริงอย่างแม่นยำ (ต้องเป็นชื่อ รพ. เท่านั้น ป้องกันการดึงหัวตาราง)
   let dataStartIndex = 1; 
-  for (let i = 0; i < Math.min(5, rows.length); i++) {
-    if (rows[i].some(cell => cell && (cell.includes('รพ.') || cell.includes('กงไกรลาศ') || cell.includes('สถานบริการ')))) {
-      dataStartIndex = i;
-      break;
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const firstCol = (rows[i][0] || '').trim();
+    // ถ้าช่องแรกขึ้นต้นด้วย รพ. หรือมีคำว่ากงไกรลาศ และต้องไม่ใช่คำว่า สถานบริการ หรือ อำเภอ
+    if (firstCol && (firstCol.startsWith('รพ') || firstCol.includes('กงไกรลาศ'))) {
+      if (!firstCol.includes('สถานบริการ') && !firstCol.includes('อำเภอ')) {
+        dataStartIndex = i;
+        break;
+      }
     }
   }
 
-  // 2. สร้าง Header อัจฉริยะ (แก้ปัญหา Merge Cells คำว่า 'ผลงาน')
+  // 2. สร้าง Header อัจฉริยะ (ดึงเฉพาะบรรทัดที่เป็น Header จริงๆ)
   let header = [];
   let maxCols = 0;
-  for(let i=0; i<=dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
+  for(let i=0; i<dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
 
   for (let c = 0; c < maxCols; c++) {
     let colName = '';
     for (let r = 0; r < dataStartIndex; r++) {
       if (rows[r][c] && rows[r][c].trim() !== '') {
-        colName = rows[r][c].trim(); // อัปเดตทับด้วยค่าบรรทัดที่ต่ำกว่า (จะดึงวันที่มาแทนคำว่าผลงาน)
+        colName = rows[r][c].trim();
       }
     }
     header[c] = colName;
   }
 
-  // หาว่าคอลัมน์ไหนคือรายชื่อสถานบริการ
   const headerLower = header.map(h => (h||'').toLowerCase());
   let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
   if (colDistrict === -1) colDistrict = 0;
@@ -383,17 +386,15 @@ function renderHDC(rows) {
   }
   let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
 
-  // กรองเอาเฉพาะแถวข้อมูล (ตัดแถว 'รวม' ด้านล่างทิ้ง เพื่อให้คำนวณเองแม่นยำกว่า)
+  // กรองเอาเฉพาะแถวข้อมูล
   const data = rows.slice(dataStartIndex).filter(r => 
     r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
   );
 
-  // คำนวณยอด 
   let totAll = 0, prevAll = 0;
   let totRph = 0, totHos = 0;
   let myTotal = 0, myPrev = 0;
 
-  // เช็คว่าเป็นตารางแยกราย รพ. (แบบใหม่) หรือรวมรายอำเภอ (แบบเก่า)
   const isHospitalRowFormat = data.some(r => r[colDistrict] && r[colDistrict].includes('รพ.สต'));
 
   data.forEach(r => {
@@ -404,7 +405,6 @@ function renderHDC(rows) {
     totAll += valLatest;
     prevAll += valPrev;
 
-    // ถ้าตารางเป็นราย รพ. (แบบใหม่) ให้เช็คจากชื่อแถวเพื่อบวกสัดส่วน
     if (isHospitalRowFormat) {
       if (name.includes('รพ.สต')) totHos += valLatest;
       else if (name.includes('รพ.')) totRph += valLatest;
@@ -446,7 +446,6 @@ function renderHDC(rows) {
     </div>
   `;
 
-  // เรียงลำดับตามยอดล่าสุด
   const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
   const tbody = document.getElementById('hdc-tbody');
 
@@ -471,7 +470,6 @@ function renderHDC(rows) {
       </tr>`;
   });
 
-  // สร้าง Chart
   if (hdcChart) hdcChart.destroy();
   const ctx = document.getElementById('hdcBarChart').getContext('2d');
   const labels = sorted.map(r => r[colDistrict]||'');
@@ -488,7 +486,7 @@ function renderHDC(rows) {
 }
 
 /* ══════════════════════════════════
-   RENDER กสป PANEL (SMART COLUMN DETECT 2.0)
+   RENDER กสป PANEL (FIXED DATA ROW DETECT)
 ══════════════════════════════════ */
 function renderKSP(rows) {
   if (!rows || rows.length < 2) {
@@ -497,16 +495,19 @@ function renderKSP(rows) {
   }
 
   let dataStartIndex = 1; 
-  for (let i = 0; i < Math.min(5, rows.length); i++) {
-    if (rows[i].some(cell => cell && (cell.includes('รพ.') || cell.includes('กงไกรลาศ') || cell.includes('สถานบริการ')))) {
-      dataStartIndex = i;
-      break;
+  for (let i = 0; i < Math.min(10, rows.length); i++) {
+    const firstCol = (rows[i][0] || '').trim();
+    if (firstCol && (firstCol.startsWith('รพ') || firstCol.includes('กงไกรลาศ'))) {
+      if (!firstCol.includes('สถานบริการ') && !firstCol.includes('อำเภอ')) {
+        dataStartIndex = i;
+        break;
+      }
     }
   }
 
   let header = [];
   let maxCols = 0;
-  for(let i=0; i<=dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
+  for(let i=0; i<dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
 
   for (let c = 0; c < maxCols; c++) {
     let colName = '';
@@ -614,7 +615,6 @@ function renderKSP(rows) {
   const ctx = document.getElementById('kspBarChart').getContext('2d');
   const labels = sorted.map(r => r[colDistrict]||'');
   const values = sorted.map(r => num(r[colLatest]));
-  // ใช้สีม่วงเข้มเพื่อให้แยกกับหน้า HDC ชัดเจน
   const colors = labels.map(l => l.includes('กงไกรลาศ') ? 'rgba(108,99,255,0.9)' : 'rgba(162,96,233,0.55)');
   
   kspChart = new Chart(ctx, {
