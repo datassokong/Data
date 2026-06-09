@@ -279,7 +279,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ Deep Scan Filter · Telemedicine Dashboard v5.5<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ Deep Scan Filter · Telemedicine Dashboard v5.6<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -290,7 +290,6 @@ const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
 
 // 🚀 นำ URL จาก Google Apps Script (Web App) ของคุณมาใส่ที่นี่
-// ตัวอย่าง: 'https://script.google.com/macros/s/AKfycby.../exec'
 const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwkmGCp4fcmOAflBAaa6xLOfrgZM9Y3-NuIuyQ5TqwHQUqeTUZQquVzyn4utv9lRq4s0w/exec'; 
 
 let hdcChart = null, kspChart = null;
@@ -299,7 +298,6 @@ let hdcChart = null, kspChart = null;
 async function fetchHdcApi() {
   return new Promise((resolve, reject) => {
     
-    // ตั้งค่า URL ปลายทางและพารามิเตอร์
     let requestUrl = "";
     let ajaxSettings = {};
 
@@ -311,7 +309,7 @@ async function fetchHdcApi() {
     });
 
     if (GAS_PROXY_URL && GAS_PROXY_URL.trim() !== '') {
-      // 🟢 ใช้ Google Apps Script Proxy (เสถียรสุด ทะลุ Firewall MOPH ได้)
+      // 🟢 ใช้ Google Apps Script Proxy
       requestUrl = GAS_PROXY_URL;
       ajaxSettings = {
         "url": requestUrl,
@@ -320,7 +318,7 @@ async function fetchHdcApi() {
         "data": payloadData
       };
     } else {
-      // 🟡 ใช้ Public Proxy สำรอง (เปลี่ยนจาก corsproxy.io เป็น codetabs เผื่อเซิร์ฟเวอร์โดนแบน)
+      // 🟡 ใช้ Public Proxy สำรอง
       const targetUrl = "https://opendata.moph.go.th/api/report_data";
       requestUrl = "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(targetUrl);
       
@@ -342,7 +340,7 @@ async function fetchHdcApi() {
         resolve(parsedData);
       })
       .fail(function (jqXHR, textStatus, errorThrown) {
-        reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ") แนะนำให้สร้าง GAS Proxy ครับ"));
+        reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ") แนะนำให้ตรวจสอบ GAS Proxy ครับ"));
       });
   });
 }
@@ -406,7 +404,7 @@ function errorHTML(msg) {
     <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
     <p style="color:#ff6b6b">${msg}</p>
     <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
-      <b>คำแนะนำ:</b> แนะนำให้นำ URL จาก Google Apps Script มาใส่ในตัวแปร GAS_PROXY_URL เพื่อแก้ปัญหาถาวร
+      <b>คำแนะนำ:</b> โปรดตรวจสอบความถูกต้องของข้อมูลผ่าน Console (F12)
     </p>
     <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
   </div>`;
@@ -430,241 +428,4 @@ function renderHdcFromApi(jsonData) {
   const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด', '06404'];
   
   let kkDataArray = dataArray.filter(row => {
-    const rowString = JSON.stringify(row).replace(/\s/g, ''); 
-    return kkHospNames.some(name => rowString.includes(name));
-  });
-
-  if (kkDataArray.length === 0) {
-      document.getElementById('hdc-content').innerHTML = errorHTML(`เชื่อมต่อ API สำเร็จ (${dataArray.length} รายการ) แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอในข้อมูลชุดนี้`);
-      return;
-  }
-
-  const sampleKeys = Object.keys(kkDataArray[0]);
-  let nameKey = sampleKeys.find(k => /name/i.test(k)) || sampleKeys.find(k => /hosp/i.test(k)) || sampleKeys[0];
-  let valKey = sampleKeys.find(k => /result|total|sum|count|value|telemed/i.test(k));
-  
-  if (!valKey) {
-    valKey = sampleKeys.find(k => k !== nameKey && !isNaN(Number(kkDataArray[0][k])));
-  }
-
-  let totAll = 0, totRph = 0, totHos = 0;
-  let facCount = kkDataArray.length;
-
-  kkDataArray.forEach(row => {
-    let name = String(row[nameKey] || '');
-    let val = num(row[valKey]);
-
-    totAll += val;
-    if (name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += val;
-    else totRph += val;
-  });
-
-  document.getElementById('hdc-content').innerHTML = `
-    <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (API)', totAll.toLocaleString(), 0, `ปี 2569`, 'c1')}
-      ${summaryCard('🏢','รพ.กงไกรลาศ (API)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
-      ${summaryCard('🏘️','รวม รพ.สต. (API)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
-    </div>
-
-    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (HDC API)</div>
-    <div class="chart-card">
-      <canvas id="hdcBarChart"></canvas>
-    </div>
-
-    <div class="section-title">📋 ตารางผลงานหน่วยบริการ (เฉพาะกงไกรลาศ)</div>
-    <div class="table-card">
-      <table>
-        <thead><tr>
-          <th>#</th><th>หน่วยบริการ</th>
-          <th>ผลงานสะสม (ครั้ง)</th>
-        </tr></thead>
-        <tbody id="hdc-tbody"></tbody>
-      </table>
-    </div>
-  `;
-
-  const sorted = [...kkDataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
-  const tbody = document.getElementById('hdc-tbody');
-
-  sorted.forEach((r, i) => {
-    const name = String(r[nameKey] || 'ไม่ระบุ');
-    const val = num(r[valKey]);
-
-    tbody.innerHTML += `
-      <tr>
-        <td style="color:var(--text-muted)">${i+1}</td>
-        <td><strong>${name}</strong></td>
-        <td><strong>${val.toLocaleString()}</strong></td>
-      </tr>`;
-  });
-
-  if (hdcChart) hdcChart.destroy();
-  const ctx = document.getElementById('hdcBarChart').getContext('2d');
-  const labels = sorted.map(r => String(r[nameKey] || ''));
-  const values = sorted.map(r => num(r[valKey]));
-  
-  hdcChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label: 'ยอดสะสม (ครั้ง)', data: values, backgroundColor: 'rgba(0,198,255,0.7)', borderRadius: 8 }] },
-    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
-      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
-    }
-  });
-}
-
-/* ══════════════════════════════════
-   RENDER กสป (จาก GOOGLE SHEETS)
-══════════════════════════════════ */
-function renderKSP(rows) {
-  if (!rows || rows.length < 2) {
-    document.getElementById('ksp-content').innerHTML = errorHTML('ไม่พบข้อมูลในชีต กสป');
-    return;
-  }
-
-  let dataStartIndex = 1; 
-  for (let i = 0; i < Math.min(10, rows.length); i++) {
-    const firstCol = (rows[i][0] || '').trim();
-    if (firstCol && (firstCol.startsWith('รพ') || firstCol.includes('กงไกรลาศ'))) {
-      if (!firstCol.includes('สถานบริการ') && !firstCol.includes('อำเภอ')) {
-        dataStartIndex = i;
-        break;
-      }
-    }
-  }
-
-  let header = [];
-  let maxCols = 0;
-  for(let i=0; i<dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
-
-  for (let c = 0; c < maxCols; c++) {
-    let colName = '';
-    for (let r = 0; r < dataStartIndex; r++) {
-      if (rows[r][c] && rows[r][c].trim() !== '') colName = rows[r][c].trim();
-    }
-    header[c] = colName;
-  }
-
-  const headerLower = header.map(h => (h||'').toLowerCase());
-  let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
-  if (colDistrict === -1) colDistrict = 0;
-
-  let colLatest = header.length - 1;
-  while(colLatest > colDistrict && (!header[colLatest] || header[colLatest] === '' || header[colLatest].toLowerCase() === 'ผลงาน')) {
-    colLatest--;
-  }
-  let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
-
-  const data = rows.slice(dataStartIndex).filter(r => 
-    r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
-  );
-
-  let totAll = 0, prevAll = 0;
-  let totRph = 0, totHos = 0;
-  let facCount = data.length;
-
-  data.forEach(r => {
-    const valLatest = num(r[colLatest]);
-    const valPrev = num(r[colPrev]);
-    const name = r[colDistrict] || '';
-    
-    totAll += valLatest;
-    prevAll += valPrev;
-
-    if (name.includes('รพ.สต')) totHos += valLatest;
-    else totRph += valLatest;
-  });
-
-  const totDelta = totAll - prevAll;
-
-  document.getElementById('ksp-content').innerHTML = `
-    <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (กสป)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
-      ${summaryCard('🏢','รพ.กงไกรลาศ (กสป)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
-      ${summaryCard('🏘️','รวม รพ.สต. (กสป)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
-    </div>
-
-    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
-    <div class="chart-card">
-      <canvas id="kspBarChart"></canvas>
-    </div>
-
-    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (เฉพาะกงไกรลาศ)</div>
-    <div class="table-card">
-      <table>
-        <thead><tr>
-          <th>#</th><th>หน่วยบริการ</th>
-          <th>ยอดก่อนหน้า<br><span style="font-size:0.65rem;opacity:0.7">${header[colPrev]||'ก่อนหน้า'}</span></th>
-          <th>ยอดล่าสุด<br><span style="font-size:0.65rem;color:var(--accent3)">${header[colLatest]||'ล่าสุด'}</span></th>
-          <th>ส่วนต่าง</th>
-        </tr></thead>
-        <tbody id="ksp-tbody"></tbody>
-      </table>
-    </div>
-  `;
-
-  const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
-  const tbody = document.getElementById('ksp-tbody');
-
-  sorted.forEach((r, i) => {
-    const district = r[colDistrict] || '';
-    const prev = num(r[colPrev]);
-    const tot  = num(r[colLatest]);
-    const del  = tot - prev;
-
-    let badge = `<span class="tag-zero">±0</span>`;
-    if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
-    else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
-
-    tbody.innerHTML += `
-      <tr>
-        <td style="color:var(--text-muted)">${i+1}</td>
-        <td><strong>${district}</strong></td>
-        <td>${prev.toLocaleString()}</td>
-        <td><strong>${tot.toLocaleString()}</strong></td>
-        <td>${badge}</td>
-      </tr>`;
-  });
-
-  if (kspChart) kspChart.destroy();
-  const ctx = document.getElementById('kspBarChart').getContext('2d');
-  const labels = sorted.map(r => r[colDistrict]||'');
-  const values = sorted.map(r => num(r[colLatest]));
-  
-  kspChart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: 'rgba(162,96,233,0.7)', borderRadius: 8 }] },
-    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
-      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
-    }
-  });
-}
-
-/* ══ LOAD ALL ══ */
-async function loadAllData() {
-  updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย...</div>';
-  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
-
-  try {
-    const apiData = await fetchHdcApi();
-    renderHdcFromApi(apiData);
-  } catch(e) {
-    console.error("API Error:", e);
-    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: ' + e.message);
-  }
-
-  try {
-    const kspRows = await fetchSheet(SHEET_KSP);
-    renderKSP(kspRows);
-  } catch(e) {
-    document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: ' + e.message);
-  }
-}
-
-/* ══ INIT ══ */
-loadAllData();
-</script>
-</body>
-</html>
+    const rowString = JSON.stringify(row).replace(/\s/
