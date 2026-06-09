@@ -32,7 +32,7 @@
   .refresh-btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));border:none;border-radius:999px;color:#fff;font-family:'Sarabun',sans-serif;font-size:0.82rem;font-weight:700;padding:8px 22px;cursor:pointer;transition:opacity .2s,transform .15s;box-shadow:0 4px 16px rgba(108,99,255,0.4)}
   .refresh-btn:hover{opacity:.88;transform:translateY(-1px)}
   
-  /* ปรับ tab-bar ให้รองรับปุ่มหลายๆ อัน (flex-wrap) */
+  /* ปรับ tab-bar ให้รองรับ 4 ปุ่มแบบยืดหยุ่น */
   .tab-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
   .tab-btn{flex:1 1 calc(25% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
   .tab-btn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(108,99,255,0.45)}
@@ -54,6 +54,7 @@
   .card-delta{display:inline-block;font-size:0.78rem;font-weight:700;margin-top:8px;padding:3px 10px;border-radius:999px}
   .delta-up{background:rgba(67,233,123,0.15);color:var(--accent3)}
   .delta-down{background:rgba(253,99,107,0.15);color:#fd636b}
+  .delta-zero{background:rgba(255,255,255,0.08);color:var(--text-muted)}
   .card-sub{font-size:0.72rem;color:var(--text-muted);margin-top:6px}
   .section-title{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--accent2)}
   .section-title::after{content:'';flex:1;height:1px;background:var(--glass-border)}
@@ -115,7 +116,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.0<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.1<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
