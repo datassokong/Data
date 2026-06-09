@@ -279,7 +279,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · กรองเฉพาะอำเภอกงไกรลาศ · Telemedicine Dashboard v5.2<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · กรองเฉพาะอำเภอกงไกรลาศ · Telemedicine Dashboard v5.3<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -292,13 +292,23 @@ const SHEET_KSP = 'กสป';
 let kspData = [];
 let hdcChart = null, kspChart = null;
 
-/* ══ 1. FETCH FROM MOPH API (HDC) แบบใช้ jQuery (ตามโค้ดตัวอย่าง) ══ */
+/* ══ 1. FETCH FROM MOPH API (HDC) + CORS Proxy แก้บล็อก GitHub Pages ══ */
 async function fetchHdcApi() {
   return new Promise((resolve, reject) => {
+    // กำหนด URL เป้าหมาย (API สุโขทัย)
+    const targetUrl = "https://opendata.moph.go.th/api/report_data";
+    
+    // ใช้ corsproxy.io เป็นคนกลางเพื่อแก้ไขการบล็อก CORS ของเบราว์เซอร์
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
+
     var settings = {
-      "url": "https://opendata.moph.go.th/api/report_data",
+      "url": proxyUrl,
       "method": "POST",
-      "headers": { "Content-Type": "application/json" },
+      "headers": { 
+          "Content-Type": "application/json",
+          // เผื่อไว้กรณี proxy บังคับ
+          "Accept": "application/json" 
+      },
       "data": JSON.stringify({
         "tableName": "s_telemed_hosp",
         "year": "2569",
@@ -310,7 +320,7 @@ async function fetchHdcApi() {
     $.ajax(settings)
       .done(function (response) {
         console.log("✅ HDC API Response:", response);
-        // ตรวจสอบและแปลงข้อมูล เผื่อ API ส่งมาเป็น String ที่ยังไม่ได้ Parse
+        // ตรวจสอบและแปลงข้อมูล เผื่อ API ส่งมาเป็น String
         let parsedData = response;
         if (typeof response === 'string') {
             try { parsedData = JSON.parse(response); } 
@@ -320,7 +330,7 @@ async function fetchHdcApi() {
       })
       .fail(function (jqXHR, textStatus, errorThrown) {
         console.error("❌ HDC API Error:", textStatus, errorThrown);
-        reject(new Error("เชื่อมต่อ API สุโขทัยไม่สำเร็จ (" + textStatus + ") อาจติดปัญหา CORS"));
+        reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ")"));
       });
   });
 }
@@ -384,7 +394,7 @@ function errorHTML(msg) {
     <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
     <p style="color:#ff6b6b">${msg}</p>
     <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
-      <b>วิธีตรวจสอบ:</b> กดปุ่ม F12 ที่คีย์บอร์ด เลือกแท็บ Console เพื่อดูรายละเอียด Error สีแดง
+      <b>วิธีตรวจสอบ:</b> กดปุ่ม F12 ที่คีย์บอร์ด เลือกแท็บ Console เพื่อดูรายละเอียด Error
     </p>
     <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
   </div>`;
@@ -630,7 +640,7 @@ function renderKSP(rows) {
 /* ══ LOAD ALL ══ */
 async function loadAllData() {
   updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย…</div>';
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย (ผ่าน Proxy)…</div>';
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   try {
