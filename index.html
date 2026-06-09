@@ -279,7 +279,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · กรองเฉพาะอำเภอกงไกรลาศ · Telemedicine Dashboard v5.3<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ Deep Scan Filter · Telemedicine Dashboard v5.4<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -289,16 +289,12 @@
 const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
 
-let kspData = [];
 let hdcChart = null, kspChart = null;
 
-/* ══ 1. FETCH FROM MOPH API (HDC) + CORS Proxy แก้บล็อก GitHub Pages ══ */
+/* ══ 1. FETCH FROM MOPH API (HDC) ══ */
 async function fetchHdcApi() {
   return new Promise((resolve, reject) => {
-    // กำหนด URL เป้าหมาย (API สุโขทัย)
     const targetUrl = "https://opendata.moph.go.th/api/report_data";
-    
-    // ใช้ corsproxy.io เป็นคนกลางเพื่อแก้ไขการบล็อก CORS ของเบราว์เซอร์
     const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
 
     var settings = {
@@ -306,7 +302,6 @@ async function fetchHdcApi() {
       "method": "POST",
       "headers": { 
           "Content-Type": "application/json",
-          // เผื่อไว้กรณี proxy บังคับ
           "Accept": "application/json" 
       },
       "data": JSON.stringify({
@@ -319,8 +314,6 @@ async function fetchHdcApi() {
     
     $.ajax(settings)
       .done(function (response) {
-        console.log("✅ HDC API Response:", response);
-        // ตรวจสอบและแปลงข้อมูล เผื่อ API ส่งมาเป็น String
         let parsedData = response;
         if (typeof response === 'string') {
             try { parsedData = JSON.parse(response); } 
@@ -329,7 +322,6 @@ async function fetchHdcApi() {
         resolve(parsedData);
       })
       .fail(function (jqXHR, textStatus, errorThrown) {
-        console.error("❌ HDC API Error:", textStatus, errorThrown);
         reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ")"));
       });
   });
@@ -377,7 +369,7 @@ function summaryCard(icon, label, val, delta, sub, cls) {
   if (delta > 0) dStr = `<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`;
   else if (delta < 0) dStr = `<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`;
   
-  if (delta === 0 && sub.includes('ปี')) dStr = ''; // ซ่อนสัญลักษณ์ ±0 ถ้าเป็นยอดรวมทั้งปี
+  if (delta === 0 && sub.includes('ปี')) dStr = ''; 
   
   return `
     <div class="summary-card ${cls}">
@@ -393,15 +385,12 @@ function errorHTML(msg) {
   return `<div class="loading-state">
     <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
     <p style="color:#ff6b6b">${msg}</p>
-    <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
-      <b>วิธีตรวจสอบ:</b> กดปุ่ม F12 ที่คีย์บอร์ด เลือกแท็บ Console เพื่อดูรายละเอียด Error
-    </p>
     <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
   </div>`;
 }
 
 /* ══════════════════════════════════
-   RENDER HDC (จาก API JSON + กรองกงไกรลาศ)
+   RENDER HDC (Deep Scan API Filter)
 ══════════════════════════════════ */
 function renderHdcFromApi(jsonData) {
   let dataArray = [];
@@ -410,41 +399,40 @@ function renderHdcFromApi(jsonData) {
   else if (jsonData && Array.isArray(jsonData.result)) dataArray = jsonData.result;
 
   if (!dataArray || dataArray.length === 0) {
-    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูล Array ใน API ที่ส่งกลับมา');
+    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูลใน API ที่ส่งกลับมา');
     return;
   }
 
-  // ค้นหา Key ชื่อหน่วยบริการ และ ค่ายอดรวม อัตโนมัติ
-  const sampleKeys = Object.keys(dataArray[0]);
-  let nameKey = sampleKeys.find(k => /hosp_?name|hospital|amp_?name|name/i.test(k)) || sampleKeys[0];
-  let valKey = sampleKeys.find(k => /result|total|sum|count|telemed/i.test(k));
-  if (!valKey) valKey = sampleKeys.find(k => typeof dataArray[0][k] === 'number' || !isNaN(num(dataArray[0][k])));
-
-  // 🎯 กรองข้อมูล API ให้เหลือเฉพาะเครือข่ายอำเภอกงไกรลาศ
-  let kkDataArray = dataArray.filter(row => {
-    let str = JSON.stringify(row).replace(/\s/g, '');
-    return str.includes('กงไกรลาศ') || str.includes('06404');
-  });
+  // 🎯 Deep Scan Filter: กวาดดูข้อความทั้งบรรทัด (ทะลุทุก Key) เพื่อหารายชื่อหน่วยบริการเครือข่ายกงไกรลาศ
+  const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด', '06404'];
   
-  if (kkDataArray.length === 0 && dataArray.length > 0) {
-     const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด'];
-     kkDataArray = dataArray.filter(row => {
-       const hname = String(row[nameKey] || '');
-       return kkHospNames.some(k => hname.includes(k));
-     });
-  }
+  let kkDataArray = dataArray.filter(row => {
+    // นำ Object ทั้งบรรทัดมาแปลงเป็น String ก้อนเดียว
+    const rowString = JSON.stringify(row).replace(/\s/g, ''); 
+    // ถ้าเจอคำใดคำหนึ่งในลิสต์รายชื่อ ให้ถือว่าเป็นของเครือข่ายกงไกรลาศ
+    return kkHospNames.some(name => rowString.includes(name));
+  });
 
-  dataArray = kkDataArray;
-
-  if(dataArray.length === 0) {
-      document.getElementById('hdc-content').innerHTML = errorHTML('ดึงข้อมูล API ได้ แต่ไม่พบรายชื่อ รพ. ในอำเภอกงไกรลาศ');
+  if (kkDataArray.length === 0) {
+      console.log("ตัวอย่างข้อมูล API (ไม่ผ่านฟิลเตอร์):", dataArray[0]);
+      document.getElementById('hdc-content').innerHTML = errorHTML(`เชื่อมต่อ API ได้ (${dataArray.length} รายการ) แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอในข้อมูลชุดนี้เลย`);
       return;
   }
 
-  let totAll = 0, totRph = 0, totHos = 0;
-  let facCount = dataArray.length;
+  // ค้นหา Key ที่เก็บชื่อและผลงานอัตโนมัติ (จากก้อนข้อมูลที่กรองแล้ว)
+  const sampleKeys = Object.keys(kkDataArray[0]);
+  let nameKey = sampleKeys.find(k => /name/i.test(k)) || sampleKeys.find(k => /hosp/i.test(k)) || sampleKeys[0];
+  let valKey = sampleKeys.find(k => /result|total|sum|count|value|telemed/i.test(k));
+  
+  // กรณีตั้งชื่อ Key แปลกๆ ให้หาคอลัมน์ที่เป็นตัวเลขแทน
+  if (!valKey) {
+    valKey = sampleKeys.find(k => k !== nameKey && !isNaN(Number(kkDataArray[0][k])));
+  }
 
-  dataArray.forEach(row => {
+  let totAll = 0, totRph = 0, totHos = 0;
+  let facCount = kkDataArray.length;
+
+  kkDataArray.forEach(row => {
     let name = String(row[nameKey] || '');
     let val = num(row[valKey]);
 
@@ -479,7 +467,7 @@ function renderHdcFromApi(jsonData) {
   `;
 
   // จัดเรียงข้อมูลจากมากไปน้อย
-  const sorted = [...dataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
+  const sorted = [...kkDataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
   const tbody = document.getElementById('hdc-tbody');
 
   sorted.forEach((r, i) => {
@@ -494,7 +482,6 @@ function renderHdcFromApi(jsonData) {
       </tr>`;
   });
 
-  // สร้าง Chart
   if (hdcChart) hdcChart.destroy();
   const ctx = document.getElementById('hdcBarChart').getContext('2d');
   const labels = sorted.map(r => String(r[nameKey] || ''));
@@ -510,7 +497,7 @@ function renderHdcFromApi(jsonData) {
 }
 
 /* ══════════════════════════════════
-   RENDER กสป (จาก GOOGLE SHEETS เฉพาะกงไกรลาศ)
+   RENDER กสป (จาก GOOGLE SHEETS)
 ══════════════════════════════════ */
 function renderKSP(rows) {
   if (!rows || rows.length < 2) {
