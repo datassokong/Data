@@ -35,7 +35,6 @@
     overflow-x: hidden;
   }
 
-  /* Animated background orbs */
   body::before, body::after {
     content: '';
     position: fixed;
@@ -59,10 +58,8 @@
   @keyframes orb1 { to { transform: translate(60px, 40px) scale(1.1); } }
   @keyframes orb2 { to { transform: translate(-40px, -60px) scale(1.15); } }
 
-  /* ── Layout ── */
   .wrapper { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
 
-  /* ── Header ── */
   .header {
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 16px;
@@ -107,7 +104,6 @@
   }
   .refresh-btn:hover { opacity: .88; transform: translateY(-1px); }
 
-  /* ── Tab Bar ── */
   .tab-bar {
     display: flex; gap: 10px; margin-bottom: 28px;
     background: var(--glass-bg);
@@ -134,12 +130,10 @@
   }
   .tab-btn:not(.active):hover { background: rgba(255,255,255,0.08); color: #fff; }
 
-  /* ── Panels ── */
   .panel { display: none; animation: fadeIn .4s ease; }
   .panel.active { display: block; }
   @keyframes fadeIn { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
 
-  /* ── Summary Cards ── */
   .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 28px; }
   .summary-card {
     background: var(--glass-bg);
@@ -171,7 +165,6 @@
   .delta-zero { background: rgba(255,255,255,0.08); color: var(--text-muted); }
   .card-sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; }
 
-  /* ── Section Title ── */
   .section-title {
     display: flex; align-items: center; gap: 10px;
     font-size: 1rem; font-weight: 700;
@@ -179,7 +172,6 @@
   }
   .section-title::after { content:''; flex:1; height:1px; background: var(--glass-border); }
 
-  /* ── Bar Chart Card ── */
   .chart-card {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
@@ -191,7 +183,6 @@
   }
   .chart-card canvas { max-height: 340px; }
 
-  /* ── District Table ── */
   .table-card {
     background: var(--glass-bg);
     border: 1px solid var(--glass-border);
@@ -218,7 +209,6 @@
   .tag-down { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; background:rgba(253,99,107,0.15); color:#fd636b; }
   .tag-zero { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:600; background:rgba(255,255,255,0.06); color:var(--text-muted); }
 
-  /* ── Loading / Error ── */
   .loading-state {
     text-align: center; padding: 60px 20px;
     color: var(--text-muted); font-size: 1rem;
@@ -233,7 +223,20 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Footer ── */
+  /* Debug box */
+  .debug-box {
+    background: rgba(255,165,0,0.1);
+    border: 1px solid rgba(255,165,0,0.35);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    font-size: 0.78rem;
+    color: rgba(255,200,100,0.9);
+    margin-bottom: 16px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
   .footer { text-align:center; font-size:.75rem; color:var(--text-muted); margin-top:36px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.07); }
 
   @media(max-width:520px) {
@@ -278,22 +281,20 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ GAS Proxy · Telemedicine Dashboard v5.7<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ GAS Proxy · Telemedicine Dashboard v5.8<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
 
 <script>
 /* =========================================================
-   ส่วนของ JavaScript (ห้ามลบหรือแก้ไขถ้าไม่จำเป็น)
+   CONFIG — แก้ค่า GAS_PROXY_URL ให้ตรงกับ Web App ของคุณ
    ========================================================= */
+const SHEET_ID   = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
+const SHEET_KSP  = 'กสป';
 
-/* ── CONFIG ── */
-const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
-const SHEET_KSP = 'กสป';
-
-// 🚀 นำ URL จาก Google Apps Script (Web App) ของคุณมาใส่ที่นี่
-const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwkmGCp4fcmOAflBAaa6xLOfrgZM9Y3-NuIuyQ5TqwHQUqeTUZQquVzyn4utv9lRq4s0w/exec'; 
+// 🚀 วาง URL ของ GAS Web App ที่ deploy ใหม่แล้ว (Execute as Me, Anyone access)
+const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwkmGCp4fcmOAflBAaa6xLOfrgZM9Y3-NuIuyQ5TqwHQUqeTUZQquVzyn4utv9lRq4s0w/exec';
 
 let hdcChart = null, kspChart = null;
 
@@ -310,7 +311,6 @@ function updateDate() {
   document.getElementById('dateBadge').textContent = '📅 ' + d.toLocaleDateString('th-TH', opts);
 }
 
-// ฟังก์ชันสลับแท็บ (ที่เคย Error) ตอนนี้อยู่ใน Global Scope แล้ว
 window.switchTab = function(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -322,9 +322,7 @@ function summaryCard(icon, label, val, delta, sub, cls) {
   let dStr = `<span class="card-delta delta-zero">±0</span>`;
   if (delta > 0) dStr = `<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`;
   else if (delta < 0) dStr = `<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`;
-  
-  if (delta === 0 && sub.includes('ปี')) dStr = ''; 
-  
+  if (delta === 0 && sub.includes('ปี')) dStr = '';
   return `
     <div class="summary-card ${cls}">
       <div class="card-icon">${icon}</div>
@@ -343,32 +341,45 @@ function errorHTML(msg) {
   </div>`;
 }
 
-/* ══ 1. FETCH FROM MOPH API (HDC) + GAS Proxy Support ══ */
+/* ══════════════════════════════════════════════════════════
+   1. FETCH FROM MOPH API ผ่าน GAS Proxy (ใช้ GET ✅)
+   
+   เปลี่ยนจาก POST เป็น GET + ส่ง params ใน URL
+   เพื่อหลีกเลี่ยง CORS Preflight (OPTIONS request)
+   ที่ GAS ContentService ไม่รองรับ
+══════════════════════════════════════════════════════════ */
 async function fetchHdcApi() {
-  const payloadData = JSON.stringify({
-    "tableName": "s_telemed_hosp",
-    "year": "2569",
-    "province": "64",
-    "type": "json"
+  // สร้าง URL พร้อม query parameters
+  const params = new URLSearchParams({
+    table:    's_telemed_hosp',
+    year:     '2569',
+    province: '64',
+    type:     'json'
   });
 
-  // ใช้ fetch แทน jQuery เพื่อให้รองรับ CORS ได้ดีกว่า
-  const response = await fetch(GAS_PROXY_URL, {
-    method: "POST",
-    // 💡 ส่งข้อมูลแบบ text/plain เพื่อหลีกเลี่ยงการเช็ก CORS Preflight (OPTIONS) ของ Google
-    headers: { "Content-Type": "text/plain" },
-    body: payloadData
+  const url = `${GAS_PROXY_URL}?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    // ✅ ไม่ต้องใส่ headers พิเศษ — GET ไม่ trigger Preflight
+    redirect: 'follow'   // GAS redirect ไปยัง script.googleusercontent.com
   });
 
   if (!response.ok) {
-    throw new Error("ไม่สามารถเชื่อมต่อ Proxy ได้ (HTTP " + response.status + ")");
+    throw new Error(`HTTP ${response.status} — ไม่สามารถเชื่อมต่อ GAS Proxy ได้`);
   }
 
   const rawText = await response.text();
+
+  // ตรวจสอบว่าได้ HTML กลับมา (กรณีติด Login หรือ Error page)
+  if (rawText.trim().startsWith('<')) {
+    throw new Error('ได้รับ HTML แทน JSON — อาจติดหน้า Login Google หรือ GAS ยังไม่ได้ deploy');
+  }
+
   try {
     return JSON.parse(rawText);
   } catch(e) {
-    throw new Error("ข้อมูลที่ได้รับจาก API ไม่ใช่รูปแบบ JSON (อาจจะติดหน้า Login ของ Google)");
+    throw new Error('JSON parse ล้มเหลว: ' + rawText.substring(0, 200));
   }
 }
 
@@ -378,7 +389,7 @@ async function fetchSheet(sheetName) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const text = await res.text();
-  
+
   return new Promise((resolve, reject) => {
     Papa.parse(text, {
       header: false,
@@ -395,42 +406,50 @@ async function fetchSheet(sheetName) {
 function renderHdcFromApi(jsonData) {
   let dataArray = [];
   if (Array.isArray(jsonData)) dataArray = jsonData;
-  else if (jsonData && Array.isArray(jsonData.data)) dataArray = jsonData.data;
+  else if (jsonData && Array.isArray(jsonData.data))   dataArray = jsonData.data;
   else if (jsonData && Array.isArray(jsonData.result)) dataArray = jsonData.result;
 
   if (!dataArray || dataArray.length === 0) {
-    document.getElementById('hdc-content').innerHTML = errorHTML('เชื่อมต่อได้ แต่ไม่พบข้อมูลใน API ที่ส่งกลับมา');
+    document.getElementById('hdc-content').innerHTML = errorHTML(
+      'เชื่อมต่อได้ แต่ไม่พบข้อมูลใน API ที่ส่งกลับมา (array ว่าง)'
+    );
     return;
   }
 
   // 🎯 Deep Scan Filter หาเฉพาะอำเภอกงไกรลาศ
-  const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด', '06404'];
-  
+  const kkHospNames = [
+    'กงไกรลาศ','ไกรใน','หนองตูม','น้ำเรือง','ดงเดือย','ปรักรัก',
+    'ประดู่เฒ่า','ป่าแฝก','ไกรกลาง','ไกรนอก','หนองกระทุ่ม',
+    'ใหม่สุขเกษม','กง','ท่าฉนวน','กกแรต','หนองหลอด','06404'
+  ];
+
   let kkDataArray = dataArray.filter(row => {
-    const rowString = JSON.stringify(row).replace(/\s/g, ''); 
+    const rowString = JSON.stringify(row).replace(/\s/g, '');
     return kkHospNames.some(name => rowString.includes(name));
   });
 
   if (kkDataArray.length === 0) {
-      document.getElementById('hdc-content').innerHTML = errorHTML(`เชื่อมต่อ API สำเร็จ (${dataArray.length} รายการ) แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอในข้อมูลชุดนี้`);
-      return;
+    // แสดง debug: 3 rows แรก ให้เห็น key/value จริง
+    const sample = JSON.stringify(dataArray.slice(0, 3), null, 2);
+    document.getElementById('hdc-content').innerHTML =
+      `<div class="debug-box">พบข้อมูลทั้งหมด ${dataArray.length} รายการ แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอ\n\nตัวอย่าง 3 แถวแรก:\n${sample}</div>` +
+      errorHTML('ลองดู debug box ด้านบน แล้วแก้ชื่อใน kkHospNames ให้ตรงกับ key ที่ API ส่งมา');
+    return;
   }
 
   const sampleKeys = Object.keys(kkDataArray[0]);
-  let nameKey = sampleKeys.find(k => /name/i.test(k)) || sampleKeys.find(k => /hosp/i.test(k)) || sampleKeys[0];
-  let valKey = sampleKeys.find(k => /result|total|sum|count|value|telemed/i.test(k));
-  
+  let nameKey = sampleKeys.find(k => /name/i.test(k))
+             || sampleKeys.find(k => /hosp/i.test(k))
+             || sampleKeys[0];
+  let valKey  = sampleKeys.find(k => /result|total|sum|count|value|telemed/i.test(k));
   if (!valKey) {
     valKey = sampleKeys.find(k => k !== nameKey && !isNaN(Number(kkDataArray[0][k])));
   }
 
   let totAll = 0, totRph = 0, totHos = 0;
-  let facCount = kkDataArray.length;
-
   kkDataArray.forEach(row => {
-    let name = String(row[nameKey] || '');
-    let val = num(row[valKey]);
-
+    const name = String(row[nameKey] || '');
+    const val  = num(row[valKey]);
     totAll += val;
     if (name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += val;
     else totRph += val;
@@ -438,10 +457,10 @@ function renderHdcFromApi(jsonData) {
 
   document.getElementById('hdc-content').innerHTML = `
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (API)', totAll.toLocaleString(), 0, `ปี 2569`, 'c1')}
+      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (API)', totAll.toLocaleString(), 0, 'ปี 2569', 'c1')}
       ${summaryCard('🏢','รพ.กงไกรลาศ (API)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
       ${summaryCard('🏘️','รวม รพ.สต. (API)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
+      ${summaryCard('📍','จำนวนหน่วยบริการ', kkDataArray.length.toLocaleString(), 0, 'แห่ง', 'c4')}
     </div>
 
     <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (HDC API)</div>
@@ -462,12 +481,10 @@ function renderHdcFromApi(jsonData) {
   `;
 
   const sorted = [...kkDataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
-  const tbody = document.getElementById('hdc-tbody');
-
+  const tbody  = document.getElementById('hdc-tbody');
   sorted.forEach((r, i) => {
     const name = String(r[nameKey] || 'ไม่ระบุ');
-    const val = num(r[valKey]);
-
+    const val  = num(r[valKey]);
     tbody.innerHTML += `
       <tr>
         <td style="color:var(--text-muted)">${i+1}</td>
@@ -477,15 +494,20 @@ function renderHdcFromApi(jsonData) {
   });
 
   if (hdcChart) hdcChart.destroy();
-  const ctx = document.getElementById('hdcBarChart').getContext('2d');
+  const ctx    = document.getElementById('hdcBarChart').getContext('2d');
   const labels = sorted.map(r => String(r[nameKey] || ''));
   const values = sorted.map(r => num(r[valKey]));
-  
   hdcChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label: 'ยอดสะสม (ครั้ง)', data: values, backgroundColor: 'rgba(0,198,255,0.7)', borderRadius: 8 }] },
-    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
-      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
+    data: { labels, datasets: [{ label:'ยอดสะสม (ครั้ง)', data: values,
+      backgroundColor: 'rgba(0,198,255,0.7)', borderRadius: 8 }] },
+    options: {
+      responsive: true,
+      plugins: { legend:{ labels:{ color:'#fff', font:{family:'Sarabun'} } } },
+      scales: {
+        x: { ticks:{ color:'rgba(255,255,255,.65)', font:{family:'Sarabun'} } },
+        y: { ticks:{ color:'rgba(255,255,255,.65)', font:{family:'Sarabun'} } }
+      }
     }
   });
 }
@@ -499,7 +521,7 @@ function renderKSP(rows) {
     return;
   }
 
-  let dataStartIndex = 1; 
+  let dataStartIndex = 1;
   for (let i = 0; i < Math.min(10, rows.length); i++) {
     const firstCol = (rows[i][0] || '').trim();
     if (firstCol && (firstCol.startsWith('รพ') || firstCol.includes('กงไกรลาศ'))) {
@@ -513,7 +535,6 @@ function renderKSP(rows) {
   let header = [];
   let maxCols = 0;
   for(let i=0; i<dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
-
   for (let c = 0; c < maxCols; c++) {
     let colName = '';
     for (let r = 0; r < dataStartIndex; r++) {
@@ -523,7 +544,9 @@ function renderKSP(rows) {
   }
 
   const headerLower = header.map(h => (h||'').toLowerCase());
-  let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
+  let colDistrict = headerLower.findIndex(h =>
+    h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ')
+  );
   if (colDistrict === -1) colDistrict = 0;
 
   let colLatest = header.length - 1;
@@ -532,22 +555,17 @@ function renderKSP(rows) {
   }
   let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
 
-  const data = rows.slice(dataStartIndex).filter(r => 
+  const data = rows.slice(dataStartIndex).filter(r =>
     r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
   );
 
-  let totAll = 0, prevAll = 0;
-  let totRph = 0, totHos = 0;
-  let facCount = data.length;
-
+  let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
   data.forEach(r => {
     const valLatest = num(r[colLatest]);
-    const valPrev = num(r[colPrev]);
-    const name = r[colDistrict] || '';
-    
-    totAll += valLatest;
+    const valPrev   = num(r[colPrev]);
+    const name      = r[colDistrict] || '';
+    totAll  += valLatest;
     prevAll += valPrev;
-
     if (name.includes('รพ.สต')) totHos += valLatest;
     else totRph += valLatest;
   });
@@ -559,7 +577,7 @@ function renderKSP(rows) {
       ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (กสป)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
       ${summaryCard('🏢','รพ.กงไกรลาศ (กสป)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
       ${summaryCard('🏘️','รวม รพ.สต. (กสป)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
+      ${summaryCard('📍','จำนวนหน่วยบริการ', data.length.toLocaleString(), 0, 'แห่ง', 'c4')}
     </div>
 
     <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
@@ -582,18 +600,15 @@ function renderKSP(rows) {
   `;
 
   const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
-  const tbody = document.getElementById('ksp-tbody');
-
+  const tbody  = document.getElementById('ksp-tbody');
   sorted.forEach((r, i) => {
     const district = r[colDistrict] || '';
     const prev = num(r[colPrev]);
     const tot  = num(r[colLatest]);
     const del  = tot - prev;
-
     let badge = `<span class="tag-zero">±0</span>`;
-    if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
+    if (del > 0)      badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
     else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
-
     tbody.innerHTML += `
       <tr>
         <td style="color:var(--text-muted)">${i+1}</td>
@@ -605,15 +620,20 @@ function renderKSP(rows) {
   });
 
   if (kspChart) kspChart.destroy();
-  const ctx = document.getElementById('kspBarChart').getContext('2d');
+  const ctx    = document.getElementById('kspBarChart').getContext('2d');
   const labels = sorted.map(r => r[colDistrict]||'');
   const values = sorted.map(r => num(r[colLatest]));
-  
   kspChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: 'rgba(162,96,233,0.7)', borderRadius: 8 }] },
-    options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
-      scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
+    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values,
+      backgroundColor: 'rgba(162,96,233,0.7)', borderRadius: 8 }] },
+    options: {
+      responsive: true,
+      plugins: { legend:{ labels:{ color:'#fff', font:{family:'Sarabun'} } } },
+      scales: {
+        x: { ticks:{ color:'rgba(255,255,255,.65)', font:{family:'Sarabun'} } },
+        y: { ticks:{ color:'rgba(255,255,255,.65)', font:{family:'Sarabun'} } }
+      }
     }
   });
 }
@@ -621,26 +641,29 @@ function renderKSP(rows) {
 /* ══ MAIN PROCESS ══ */
 async function loadAllData() {
   updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูลจากกระทรวงสาธารณสุข...</div>';
-  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
+  document.getElementById('hdc-content').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูลจากกระทรวงสาธารณสุข...</div>';
+  document.getElementById('ksp-content').innerHTML =
+    '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   try {
     const apiData = await fetchHdcApi();
     renderHdcFromApi(apiData);
   } catch(e) {
-    console.error("API Error:", e);
-    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: ' + e.message);
+    console.error('API Error:', e);
+    document.getElementById('hdc-content').innerHTML =
+      errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: ' + e.message);
   }
 
   try {
     const kspRows = await fetchSheet(SHEET_KSP);
     renderKSP(kspRows);
   } catch(e) {
-    document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: ' + e.message);
+    document.getElementById('ksp-content').innerHTML =
+      errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: ' + e.message);
   }
 }
 
-/* เริ่มทำงานเมื่อโหลดหน้าเว็บเสร็จ */
 window.onload = loadAllData;
 </script>
 </body>
