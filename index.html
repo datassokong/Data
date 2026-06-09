@@ -32,7 +32,6 @@
   .refresh-btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));border:none;border-radius:999px;color:#fff;font-family:'Sarabun',sans-serif;font-size:0.82rem;font-weight:700;padding:8px 22px;cursor:pointer;transition:opacity .2s,transform .15s;box-shadow:0 4px 16px rgba(108,99,255,0.4)}
   .refresh-btn:hover{opacity:.88;transform:translateY(-1px)}
   
-  /* ปรับ tab-bar ให้รองรับ 4 ปุ่มแบบยืดหยุ่น */
   .tab-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
   .tab-btn{flex:1 1 calc(25% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
   .tab-btn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(108,99,255,0.45)}
@@ -96,27 +95,27 @@
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 HDC อ.กงไกรลาศ</button>
-    <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ กสป อ.กงไกรลาศ</button>
-    <button class="tab-btn" onclick="switchTab('hdc-prov',this)">📊 HDC จ.สุโขทัย</button>
+    <button class="tab-btn active" onclick="switchTab('hdc-prov',this)">📊 HDC จ.สุโขทัย</button>
     <button class="tab-btn" onclick="switchTab('ksp-prov',this)">🗂️ กสป จ.สุโขทัย</button>
+    <button class="tab-btn" onclick="switchTab('hdc',this)">📊 HDC อ.กงไกรลาศ</button>
+    <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ กสป อ.กงไกรลาศ</button>
   </div>
 
-  <div class="panel active" id="panel-hdc">
+  <div class="panel active" id="panel-hdc-prov">
+    <div id="hdc-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div></div>
+  </div>
+  <div class="panel" id="panel-ksp-prov">
+    <div id="ksp-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อำเภอ…</div></div>
+  </div>
+  <div class="panel" id="panel-hdc">
     <div id="hdc-content"><div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div></div>
   </div>
   <div class="panel" id="panel-ksp">
     <div id="ksp-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div></div>
   </div>
-  <div class="panel" id="panel-hdc-prov">
-    <div id="hdc-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div></div>
-  </div>
-  <div class="panel" id="panel-ksp-prov">
-    <div id="ksp-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป รวม…</div></div>
-  </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.1<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.2<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -126,7 +125,7 @@
 const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbzPyoYFPH0Ud2IwBSLQI6dIbT-zp8qFp3QNETKFam_WykN3hhho6d1MmpRimLdROjY14w/exec';
 const SHEET_ID  = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
-const SHEET_KSP_ALL = 'กสป รวม';
+const SHEET_KSP_ALL = 'กสป อำเภอ';
 
 // ══════════════════════════════════════════════════════
 // การตั้งค่าอำเภอกงไกรลาศ
@@ -482,7 +481,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
       const hname = String(r.hospname || r.HOSPNAME || r.name || '');
 
       if(ac.startsWith('64') && ac.length >= 4) {
-        const dCode = ac.substring(2,4); // เช่น '04' คือกงไกรลาศ
+        const dCode = ac.substring(2,4); 
         if(byDist[dCode]) {
            byDist[dCode].totalLatest += val;
            if(hname.includes('รพ.สต')||hname.includes('ส่งเสริม')) byDist[dCode].countHos += val;
@@ -492,7 +491,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
     });
   }
 
-  // ดึงยอดก่อนหน้าจาก Sheet HDC (โดยดูที่คอลัมน์อำเภอ)
+  // ดึงยอดก่อนหน้าจาก Sheet HDC
   let datePrevStr = 'ฐานข้อมูล';
   if (sheetRows && sheetRows.length >= 2) {
     let dataStart=1;
@@ -584,11 +583,11 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
 }
 
 /* ══════════════════════════════════════════
-   4. RENDER กสป จ.สุโขทัย (KSP Province)
+   4. RENDER กสป จ.สุโขทัย (KSP Province) ดึงจาก "กสป อำเภอ"
 ══════════════════════════════════════════ */
 function renderKspProv(rows){
   if(!rows||rows.length<2){
-    document.getElementById('ksp-prov-content').innerHTML=errorHTML('ไม่พบข้อมูลในชีต กสป รวม');return;
+    document.getElementById('ksp-prov-content').innerHTML=errorHTML('ไม่พบข้อมูลในชีต กสป อำเภอ');return;
   }
   let headerRowIdx = 0;
   for(let i=0;i<Math.min(10,rows.length);i++){
@@ -651,32 +650,32 @@ function renderKspProv(rows){
 /* ══ MAIN PROCESS ══ */
 async function loadAllData(){
   updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>';
-  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อ.กงไกรลาศ…</div>';
   document.getElementById('hdc-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div>';
-  document.getElementById('ksp-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป จ.สุโขทัย…</div>';
+  document.getElementById('ksp-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อำเภอ…</div>';
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div>';
+  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   // โหลด HDC API และ Sheet ของอำเภอ
   Promise.all([
     fetchHdcApi().catch(e => { throw e; }),
     fetchSheetFixed('HDC').catch(e => null) 
   ]).then(([apiData, sheetData]) => {
-    renderHdcFromApi(apiData, sheetData); // หน้า 1 (อ.กงไกรลาศ)
-    renderHdcProvFromApi(apiData, sheetData); // หน้า 3 (ระดับจังหวัด)
+    renderHdcProvFromApi(apiData, sheetData); // หน้า 1 (ระดับจังหวัด)
+    renderHdcFromApi(apiData, sheetData); // หน้า 3 (อ.กงไกรลาศ)
   }).catch(e => {
     console.error(e);
-    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: '+e.message);
     document.getElementById('hdc-prov-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ระดับจังหวัด ไม่สำเร็จ: '+e.message);
+    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: '+e.message);
+  });
+
+  // โหลด กสป อำเภอ (ระดับจังหวัด)
+  fetchSheetFixed(SHEET_KSP_ALL).then(renderKspProv).catch(e=>{
+    document.getElementById('ksp-prov-content').innerHTML = errorHTML('โหลดข้อมูล กสป ระดับจังหวัด ไม่สำเร็จ (เช็คชื่อ Sheet ต้องเป็น "กสป อำเภอ"): '+e.message);
   });
 
   // โหลด กสป อ.กงไกรลาศ
   fetchSheetFixed(SHEET_KSP).then(renderKSP).catch(e=>{
     document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป อ.กงไกรลาศ ไม่สำเร็จ: '+e.message);
-  });
-
-  // โหลด กสป รวม (ระดับจังหวัด)
-  fetchSheetFixed(SHEET_KSP_ALL).then(renderKspProv).catch(e=>{
-    document.getElementById('ksp-prov-content').innerHTML = errorHTML('โหลดข้อมูล กสป ระดับจังหวัด ไม่สำเร็จ (เช็คชื่อ Sheet ต้องเป็น "กสป รวม"): '+e.message);
   });
 }
 
