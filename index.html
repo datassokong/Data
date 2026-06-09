@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telemedicine Dashboard – อำเภอกงไกรลาศ</title>
+<title>Telemedicine Dashboard – สุโขทัย</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -31,10 +31,13 @@
   .date-badge{background:rgba(0,198,255,0.12);border:1px solid rgba(0,198,255,0.3);border-radius:999px;padding:6px 18px;font-size:0.82rem;color:var(--accent2);font-weight:600}
   .refresh-btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));border:none;border-radius:999px;color:#fff;font-family:'Sarabun',sans-serif;font-size:0.82rem;font-weight:700;padding:8px 22px;cursor:pointer;transition:opacity .2s,transform .15s;box-shadow:0 4px 16px rgba(108,99,255,0.4)}
   .refresh-btn:hover{opacity:.88;transform:translateY(-1px)}
-  .tab-bar{display:flex;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
-  .tab-btn{flex:1;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
+  
+  /* ปรับ tab-bar ให้รองรับปุ่มหลายๆ อัน (flex-wrap) */
+  .tab-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
+  .tab-btn{flex:1 1 calc(25% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
   .tab-btn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(108,99,255,0.45)}
   .tab-btn:not(.active):hover{background:rgba(255,255,255,0.08);color:#fff}
+  
   .panel{display:none;animation:fadeIn .4s ease}.panel.active{display:block}
   @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
   .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-bottom:28px}
@@ -82,7 +85,7 @@
       <div class="logo-icon">🏥</div>
       <div class="header-title">
         <h1>Telemedicine Dashboard</h1>
-        <p>เฉพาะเครือข่ายอำเภอกงไกรลาศ · จังหวัดสุโขทัย</p>
+        <p>ระดับอำเภอและระดับจังหวัด · สุโขทัย</p>
       </div>
     </div>
     <div class="header-right">
@@ -92,23 +95,27 @@
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 ข้อมูล HDC (API)</button>
-    <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ ข้อมูล กสป</button>
+    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 HDC อ.กงไกรลาศ</button>
+    <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ กสป อ.กงไกรลาศ</button>
+    <button class="tab-btn" onclick="switchTab('hdc-prov',this)">📊 HDC จ.สุโขทัย</button>
+    <button class="tab-btn" onclick="switchTab('ksp-prov',this)">🗂️ กสป จ.สุโขทัย</button>
   </div>
 
   <div class="panel active" id="panel-hdc">
-    <div id="hdc-content">
-      <div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>
-    </div>
+    <div id="hdc-content"><div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div></div>
   </div>
   <div class="panel" id="panel-ksp">
-    <div id="ksp-content">
-      <div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>
-    </div>
+    <div id="ksp-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div></div>
+  </div>
+  <div class="panel" id="panel-hdc-prov">
+    <div id="hdc-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div></div>
+  </div>
+  <div class="panel" id="panel-ksp-prov">
+    <div id="ksp-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป รวม…</div></div>
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบเปรียบเทียบอัตโนมัติ 16 แห่ง · Telemedicine Dashboard v6.3<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.0<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -118,10 +125,17 @@
 const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbzPyoYFPH0Ud2IwBSLQI6dIbT-zp8qFp3QNETKFam_WykN3hhho6d1MmpRimLdROjY14w/exec';
 const SHEET_ID  = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
+const SHEET_KSP_ALL = 'กสป รวม';
 
 // ══════════════════════════════════════════════════════
-// บังคับกำหนดรายชื่อหน่วยบริการทั้ง 16 แห่ง เพื่อป้องกัน API ส่งข้อมูลมาไม่ครบ
+// การตั้งค่าอำเภอกงไกรลาศ
 // ══════════════════════════════════════════════════════
+const KK_HOSPCODES = new Set([
+  '07402', '07403', '07404', '07405', '07406',
+  '07407', '07408', '07409', '07410', '07411',
+  '07412', '07413', '07414', '07415', '11246', '14047'
+]);
+
 const HOSP_NAMES = {
   '07402': 'รพ.สต.บ้านประดู่เฒ่า',
   '07403': 'รพ.สต.กง',
@@ -141,7 +155,22 @@ const HOSP_NAMES = {
   '14047': 'รพ.สต.บ้านหนองหลอด'
 };
 
-let hdcChart = null, kspChart = null;
+// ══════════════════════════════════════════════════════
+// การตั้งค่าระดับจังหวัด 9 อำเภอ
+// ══════════════════════════════════════════════════════
+const DISTRICT_NAMES = {
+  '01': 'เมืองสุโขทัย',
+  '02': 'บ้านด่านลานหอย',
+  '03': 'คีรีมาศ',
+  '04': 'กงไกรลาศ',
+  '05': 'ศรีสัชนาลัย',
+  '06': 'ศรีสำโรง',
+  '07': 'สวรรคโลก',
+  '08': 'ศรีนคร',
+  '09': 'ทุ่งเสลี่ยม'
+};
+
+let hdcChart=null, kspChart=null, hdcProvChart=null, kspProvChart=null;
 
 /* ── Helpers ── */
 function num(v){
@@ -179,7 +208,7 @@ function errorHTML(msg,debug){
 }
 
 /* ══════════════════════════════════════════
-   FETCH HDC ผ่าน JSONP (GAS Proxy)
+   FETCH API & Google Sheets
 ══════════════════════════════════════════ */
 function fetchHdcApi(){
   return new Promise((resolve,reject)=>{
@@ -204,23 +233,30 @@ function fetchHdcApi(){
     script.src=GAS_PROXY_URL+'?'+params.toString();
     script.onerror=()=>{
       clearTimeout(timer);delete window[cbName];
-      reject(new Error('โหลด Script ไม่ได้ — ตรวจสอบ GAS URL และ Deploy settings'));
+      reject(new Error('โหลด Script ไม่ได้ — ตรวจสอบ GAS URL'));
     };
     document.head.appendChild(script);
   });
 }
 
+async function fetchSheetFixed(sheetName){
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+  const res=await fetch(url);
+  if(!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text=await res.text();
+  return new Promise((resolve,reject)=>{
+    Papa.parse(text,{header:false,skipEmptyLines:true,
+      complete:r=>resolve(r.data),error:e=>reject(e)});
+  });
+}
+
 /* ══════════════════════════════════════════
-   RENDER HDC (รวม API Latest + Sheet Previous)
+   1. RENDER HDC อ.กงไกรลาศ (HDC Kong Krailat)
 ══════════════════════════════════════════ */
 function renderHdcFromApi(jsonData, sheetRows) {
-  // 1. สร้างรายชื่อ 16 หน่วยบริการเตรียมรอไว้ (บังคับ 16 แห่ง)
   const byHosp = {};
-  Object.keys(HOSP_NAMES).forEach(hc => {
-    byHosp[hc] = { hospcode: hc, totalLatest: 0, totalPrev: 0 };
-  });
+  Object.keys(HOSP_NAMES).forEach(hc => { byHosp[hc] = { hospcode: hc, totalLatest: 0, totalPrev: 0 }; });
 
-  // 2. ดึงข้อมูลล่าสุด (Today) จาก API 
   let all=[];
   if(Array.isArray(jsonData))          all=jsonData;
   else if(Array.isArray(jsonData?.data))   all=jsonData.data;
@@ -230,22 +266,19 @@ function renderHdcFromApi(jsonData, sheetRows) {
     all.forEach(r => {
       const hc = String(r.hospcode || r.HOSPCODE || '').trim();
       const val = num(r.result || r.RESULT || r.value || r.VALUE || 0);
-      
-      // บันทึกเฉพาะข้อมูลในเครือข่าย 16 แห่งของเราเท่านั้น
-      if (byHosp[hc]) {
-        byHosp[hc].totalLatest += val;
+      if (KK_HOSPCODES.has(hc)) byHosp[hc].totalLatest += val;
+      else if (String(r.areacode || r.AREACODE || '').trim().startsWith('6406')) {
+        if(byHosp[hc]) byHosp[hc].totalLatest += val;
       }
     });
   }
 
-  // 3. ดึงยอดก่อนหน้า (Yesterday) จากแผ่น Google Sheet (แท็บ HDC)
   let datePrevStr = 'ฐานข้อมูล';
   if (sheetRows && sheetRows.length >= 2) {
     let dataStart=1;
     for(let i=0;i<Math.min(10,sheetRows.length);i++){
       const fc=(sheetRows[i][0]||'').trim();
-      if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ'))&&
-         !fc.includes('สถานบริการ')&&!fc.includes('อำเภอ')){dataStart=i;break;}
+      if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ'))&&!fc.includes('สถานบริการ')&&!fc.includes('อำเภอ')){dataStart=i;break;}
     }
     let header=[],maxCols=0;
     for(let i=0;i<dataStart;i++) if(sheetRows[i].length>maxCols) maxCols=sheetRows[i].length;
@@ -265,9 +298,8 @@ function renderHdcFromApi(jsonData, sheetRows) {
     const sheetData = sheetRows.slice(dataStart).filter(r=>r[colD]&&r[colD].trim()!==''&&!r[colD].includes('รวม'));
     sheetData.forEach(r=>{
       const n = (r[colD]||'').replace(/\s/g, '');
-      const v = num(r[colL]); // คอลัมน์ขวาสุดของ Sheet ถือว่าเป็นยอดเมื่อวาน
+      const v = num(r[colL]); 
       
-      // Matching เพื่อนำยอดมาใส่ให้ตรงกับ Hospcode
       let matchedHc = null;
       if(n.includes('ประดู่เฒ่า')) matchedHc = '07402';
       else if(n.includes('กง') && !n.includes('กงไกรลาศ')) matchedHc = '07403';
@@ -286,19 +318,13 @@ function renderHdcFromApi(jsonData, sheetRows) {
       else if(n.includes('หนองหลอด')) matchedHc = '14047';
       else if(n.includes('กงไกรลาศ') || n.includes('11246')) matchedHc = '11246';
       
-      if (matchedHc && byHosp[matchedHc]) {
-          byHosp[matchedHc].totalPrev = v;
-      }
+      if (matchedHc && byHosp[matchedHc]) byHosp[matchedHc].totalPrev = v;
     });
   } else {
-      // ถ้าโหลด Sheet ไม่ได้ ให้ถือว่ายอดเดิม = ยอดปัจจุบัน เพื่อให้ผลต่างเป็น 0
-      Object.keys(byHosp).forEach(hc => {
-          byHosp[hc].totalPrev = byHosp[hc].totalLatest;
-      });
+      Object.keys(byHosp).forEach(hc => { byHosp[hc].totalPrev = byHosp[hc].totalLatest; });
       datePrevStr = 'ไม่พบฐานข้อมูล';
   }
 
-  // 4. สรุปผลยอดรวมทั้งหมด (รับประกันว่ามีครบ 16 แน่นอน)
   const hosps = Object.values(byHosp);
   let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
   hosps.forEach(h => {
@@ -311,42 +337,34 @@ function renderHdcFromApi(jsonData, sheetRows) {
 
   const totDelta = totAll - prevAll;
 
-  // Render UI ส่วนตาราง HDC ให้เหมือน กสป
   document.getElementById('hdc-content').innerHTML=`
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ล่าสุด (API)`,'c1')}
+      ${summaryCard('🏥','ยอดรวมอำเภอกงไกรลาศ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ปัจจุบัน (API)`,'c1')}
       ${summaryCard('🏢','ร.พ.กงไกรลาศ (HDC)',totRph.toLocaleString(),0,'สะสม','c2')}
       ${summaryCard('🏘️','รวม รพ.สต. (HDC)',totHos.toLocaleString(),0,'สะสม','c3')}
       ${summaryCard('📍','จำนวนหน่วยบริการ',hosps.length,0,'แห่ง','c4')}
     </div>
-    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการ (HDC API)</div>
+    <div class="section-title">📊 กราฟผลงานหน่วยบริการ อ.กงไกรลาศ (HDC API)</div>
     <div class="chart-card"><canvas id="hdcBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ</div>
     <div class="table-card"><table>
       <thead><tr>
         <th>#</th><th>หน่วยบริการ</th>
         <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${datePrevStr}</span></th>
-        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ล่าสุด (API)</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ปัจจุบัน (API)</span></th>
         <th>ส่วนต่าง</th>
       </tr></thead>
       <tbody id="hdc-tbody"></tbody>
     </table></div>`;
 
-  // เรียงลำดับตามยอดล่าสุดจากมากไปน้อย
   const sorted = [...hosps].sort((a,b) => b.totalLatest - a.totalLatest);
   const tbody = document.getElementById('hdc-tbody');
   
   sorted.forEach((h,i) => {
     const name = HOSP_NAMES[h.hospcode] || ('รหัส ' + h.hospcode);
     const isMe = name.includes('กงไกรลาศ');
-    
-    const p = h.totalPrev;
-    const t = h.totalLatest;
-    const d = t - p;
-
-    const badge = d > 0 ? `<span class="tag-up">+${d.toLocaleString()}</span>`
-                : d < 0 ? `<span class="tag-down">${d.toLocaleString()}</span>`
-                : `<span class="tag-zero">±0</span>`;
+    const p = h.totalPrev, t = h.totalLatest, d = t - p;
+    const badge = d > 0 ? `<span class="tag-up">+${d.toLocaleString()}</span>` : d < 0 ? `<span class="tag-down">${d.toLocaleString()}</span>` : `<span class="tag-zero">±0</span>`;
     
     tbody.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
       <td style="color:var(--text-muted)">${i+1}</td>
@@ -360,33 +378,16 @@ function renderHdcFromApi(jsonData, sheetRows) {
   if(hdcChart) hdcChart.destroy();
   hdcChart=new Chart(document.getElementById('hdcBarChart').getContext('2d'),{
     type:'bar',
-    data:{
-      labels:sorted.map(h=>HOSP_NAMES[h.hospcode]||h.hospcode),
-      datasets:[{label:'ยอดล่าสุด (API)',data:sorted.map(h=>h.totalLatest),
-        backgroundColor:'rgba(0,198,255,0.7)',borderRadius:8}]
-    },
-    options:{responsive:true,
-      plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
-      scales:{
-        x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},
-        y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}
-      }
-    }
+    data:{labels:sorted.map(h=>HOSP_NAMES[h.hospcode]||h.hospcode),
+      datasets:[{label:'ยอดล่าสุด (API)',data:sorted.map(h=>h.totalLatest),backgroundColor:'rgba(0,198,255,0.7)',borderRadius:8}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
+      scales:{x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}}}
   });
 }
 
-/* ══ FETCH + RENDER กสป ══ */
-async function fetchSheetFixed(sheetName){
-  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const res=await fetch(url);
-  if(!res.ok) throw new Error(`HTTP ${res.status}`);
-  const text=await res.text();
-  return new Promise((resolve,reject)=>{
-    Papa.parse(text,{header:false,skipEmptyLines:true,
-      complete:r=>resolve(r.data),error:e=>reject(e)});
-  });
-}
-
+/* ══════════════════════════════════════════
+   2. RENDER กสป อ.กงไกรลาศ (KSP Kong Krailat)
+══════════════════════════════════════════ */
 function renderKSP(rows){
   if(!rows||rows.length<2){
     document.getElementById('ksp-content').innerHTML=errorHTML('ไม่พบข้อมูลในชีต กสป');return;
@@ -394,8 +395,7 @@ function renderKSP(rows){
   let dataStart=1;
   for(let i=0;i<Math.min(10,rows.length);i++){
     const fc=(rows[i][0]||'').trim();
-    if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ'))&&
-       !fc.includes('สถานบริการ')&&!fc.includes('อำเภอ')){dataStart=i;break;}
+    if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ'))&&!fc.includes('สถานบริการ')&&!fc.includes('อำเภอ')){dataStart=i;break;}
   }
   let header=[],maxCols=0;
   for(let i=0;i<dataStart;i++) if(rows[i].length>maxCols) maxCols=rows[i].length;
@@ -421,14 +421,14 @@ function renderKSP(rows){
 
   document.getElementById('ksp-content').innerHTML=`
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (กสป)',totAll.toLocaleString(),totAll-prevAll,`อัปเดต: ${header[colL]||'ล่าสุด'}`,'c1')}
+      ${summaryCard('🏥','ยอดรวมอำเภอกงไกรลาศ (กสป)',totAll.toLocaleString(),totAll-prevAll,`อัปเดต: ${header[colL]||'ล่าสุด'}`,'c1')}
       ${summaryCard('🏢','ร.พ.กงไกรลาศ (กสป)',totRph.toLocaleString(),0,'สะสม','c2')}
       ${summaryCard('🏘️','รวม รพ.สต. (กสป)',totHos.toLocaleString(),0,'สะสม','c3')}
       ${summaryCard('📍','จำนวนหน่วยบริการ',data.length,0,'แห่ง','c4')}
     </div>
-    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการ (${header[colL]||'ล่าสุด'})</div>
+    <div class="section-title">📊 กราฟผลงานหน่วยบริการ อ.กงไกรลาศ (${header[colL]||'ล่าสุด'})</div>
     <div class="chart-card"><canvas id="kspBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ</div>
     <div class="table-card"><table>
       <thead><tr><th>#</th><th>หน่วยบริการ</th>
         <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${header[colP]||'ก่อนหน้า'}</span></th>
@@ -442,9 +442,7 @@ function renderKSP(rows){
   sorted.forEach((r,i)=>{
     const p=num(r[colP]),t=num(r[colL]),d=t-p;
     const isMe = (r[colD] || '').includes('กงไกรลาศ');
-    const badge=d>0?`<span class="tag-up">+${d.toLocaleString()}</span>`
-                :d<0?`<span class="tag-down">${d.toLocaleString()}</span>`
-                :`<span class="tag-zero">±0</span>`;
+    const badge=d>0?`<span class="tag-up">+${d.toLocaleString()}</span>` :d<0?`<span class="tag-down">${d.toLocaleString()}</span>` :`<span class="tag-zero">±0</span>`;
     tbody.innerHTML+=`<tr class="${isMe ? 'highlight-row' : ''}">
       <td style="color:var(--text-muted)">${i+1}</td>
       <td><strong>${r[colD]||''}</strong> ${isMe ? '<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>' : ''}</td>
@@ -457,42 +455,227 @@ function renderKSP(rows){
   kspChart=new Chart(document.getElementById('kspBarChart').getContext('2d'),{
     type:'bar',
     data:{labels:sorted.map(r=>r[colD]||''),
-      datasets:[{label:`ยอดรวม (${header[colL]||'ล่าสุด'})`,data:sorted.map(r=>num(r[colL])),
-        backgroundColor:'rgba(162,96,233,0.7)',borderRadius:8}]},
-    options:{responsive:true,
-      plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
-      scales:{
-        x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},
-        y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}
-      }
-    }
+      datasets:[{label:`ยอดรวม (${header[colL]||'ล่าสุด'})`,data:sorted.map(r=>num(r[colL])),backgroundColor:'rgba(162,96,233,0.7)',borderRadius:8}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
+      scales:{x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}}}
   });
 }
 
-/* ══ MAIN ══ */
-async function loadAllData(){
-  updateDate();
-  document.getElementById('hdc-content').innerHTML=
-    '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>';
-  document.getElementById('ksp-content').innerHTML=
-    '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
+/* ══════════════════════════════════════════
+   3. RENDER HDC จ.สุโขทัย (HDC Province)
+══════════════════════════════════════════ */
+function renderHdcProvFromApi(jsonData, sheetRows) {
+  // สร้างโครงสร้าง 9 อำเภอรอไว้
+  const byDist = {};
+  Object.keys(DISTRICT_NAMES).forEach(k => { byDist[k] = { code: k, name: DISTRICT_NAMES[k], totalLatest: 0, totalPrev: 0, countHos: 0, countRph: 0 }; });
 
-  // โหลด HDC (ดึง API มาประกบกับ Sheet)
-  Promise.all([
-    fetchHdcApi().catch(e => { throw e; }),
-    fetchSheetFixed('HDC').catch(e => null) // ใช้ Google Sheet เป็นฐานข้อมูล Backup เพื่อหายอดก่อนหน้า
-  ]).then(([apiData, sheetData]) => {
-    renderHdcFromApi(apiData, sheetData);
-  }).catch(e => {
-    console.error(e);
-    document.getElementById('hdc-content').innerHTML=
-      errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: '+e.message);
+  let all=[];
+  if(Array.isArray(jsonData))          all=jsonData;
+  else if(Array.isArray(jsonData?.data))   all=jsonData.data;
+  else if(Array.isArray(jsonData?.result)) all=jsonData.result;
+
+  if(all && all.length > 0) {
+    all.forEach(r => {
+      const ac = String(r.areacode || r.AREACODE || '').trim();
+      const val = num(r.result || r.RESULT || r.value || r.VALUE || 0);
+      const hname = String(r.hospname || r.HOSPNAME || r.name || '');
+
+      if(ac.startsWith('64') && ac.length >= 4) {
+        const dCode = ac.substring(2,4); // เช่น '04' คือกงไกรลาศ
+        if(byDist[dCode]) {
+           byDist[dCode].totalLatest += val;
+           if(hname.includes('รพ.สต')||hname.includes('ส่งเสริม')) byDist[dCode].countHos += val;
+           else byDist[dCode].countRph += val;
+        }
+      }
+    });
+  }
+
+  // ดึงยอดก่อนหน้าจาก Sheet HDC (โดยดูที่คอลัมน์อำเภอ)
+  let datePrevStr = 'ฐานข้อมูล';
+  if (sheetRows && sheetRows.length >= 2) {
+    let dataStart=1;
+    for(let i=0;i<Math.min(10,sheetRows.length);i++){
+      const fc=(sheetRows[i][0]||'').trim();
+      if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ')||Object.values(DISTRICT_NAMES).some(d=>fc.includes(d)))&&!fc.includes('สถานบริการ')){dataStart=i;break;}
+    }
+    let header=[],maxCols=0;
+    for(let i=0;i<dataStart;i++) if(sheetRows[i].length>maxCols) maxCols=sheetRows[i].length;
+    for(let c=0;c<maxCols;c++){
+      let n='';
+      for(let r=0;r<dataStart;r++) if(sheetRows[r][c]&&sheetRows[r][c].trim()!=='') n=sheetRows[r][c].trim();
+      header[c]=n;
+    }
+    const hl=header.map(h=>(h||'').toLowerCase());
+    let colD=hl.findIndex(h=>h.includes('อำเภอ')||h.includes('สถานบริการ')||h.includes('หน่วยบริการ'));
+    if(colD===-1) colD=0;
+    let colL=header.length-1;
+    while(colL>colD&&(!header[colL]||header[colL]===''||header[colL].toLowerCase()==='ผลงาน')) colL--;
+    datePrevStr = header[colL] || 'ฐานข้อมูล';
+
+    const sheetData = sheetRows.slice(dataStart).filter(r=>r[colD]&&r[colD].trim()!==''&&!r[colD].includes('รวม'));
+    sheetData.forEach(r=>{
+      const n = (r[colD]||'').trim();
+      const v = num(r[colL]); 
+      Object.keys(DISTRICT_NAMES).forEach(k => {
+         if(n.includes(DISTRICT_NAMES[k])) byDist[k].totalPrev += v;
+      });
+    });
+  } else {
+      Object.keys(byDist).forEach(k => { byDist[k].totalPrev = byDist[k].totalLatest; });
+      datePrevStr = 'ไม่พบฐานข้อมูล';
+  }
+
+  const dists = Object.values(byDist);
+  let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
+  dists.forEach(d => {
+    totAll += d.totalLatest; prevAll += d.totalPrev;
+    totRph += d.countRph; totHos += d.countHos;
   });
 
-  // โหลด กสป
+  const totDelta = totAll - prevAll;
+
+  document.getElementById('hdc-prov-content').innerHTML=`
+    <div class="summary-grid">
+      ${summaryCard('🏥','ยอดรวมจังหวัดสุโขทัย (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ปัจจุบัน (API)`,'c1')}
+      ${summaryCard('🏢','รวมเฉพาะ รพ. (HDC)',totRph.toLocaleString(),0,'สะสม','c2')}
+      ${summaryCard('🏘️','รวม รพ.สต. ทั้งหมด (HDC)',totHos.toLocaleString(),0,'สะสม','c3')}
+      ${summaryCard('📍','จำนวนอำเภอ',dists.length,0,'แห่ง','c4')}
+    </div>
+    <div class="section-title">📊 กราฟผลงานระดับอำเภอ (HDC API)</div>
+    <div class="chart-card"><canvas id="hdcProvBarChart"></canvas></div>
+    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ</div>
+    <div class="table-card"><table>
+      <thead><tr>
+        <th>#</th><th>อำเภอ</th>
+        <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${datePrevStr}</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ปัจจุบัน (API)</span></th>
+        <th>ส่วนต่าง</th>
+      </tr></thead>
+      <tbody id="hdc-prov-tbody"></tbody>
+    </table></div>`;
+
+  const sorted = [...dists].sort((a,b) => b.totalLatest - a.totalLatest);
+  const tbody = document.getElementById('hdc-prov-tbody');
+  
+  sorted.forEach((d,i) => {
+    const isMe = d.name.includes('กงไกรลาศ');
+    const p = d.totalPrev, t = d.totalLatest, diff = t - p;
+    const badge = diff > 0 ? `<span class="tag-up">+${diff.toLocaleString()}</span>` : diff < 0 ? `<span class="tag-down">${diff.toLocaleString()}</span>` : `<span class="tag-zero">±0</span>`;
+    
+    tbody.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td><strong>${d.name}</strong> ${isMe ? '<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>' : ''}</td>
+      <td>${p.toLocaleString()}</td>
+      <td><strong>${t.toLocaleString()}</strong></td>
+      <td>${badge}</td>
+    </tr>`;
+  });
+
+  if(hdcProvChart) hdcProvChart.destroy();
+  hdcProvChart=new Chart(document.getElementById('hdcProvBarChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:sorted.map(d=>d.name),
+      datasets:[{label:'ยอดล่าสุด (API)',data:sorted.map(d=>d.totalLatest),backgroundColor:'rgba(0,198,255,0.7)',borderRadius:8}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
+      scales:{x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}}}
+  });
+}
+
+/* ══════════════════════════════════════════
+   4. RENDER กสป จ.สุโขทัย (KSP Province)
+══════════════════════════════════════════ */
+function renderKspProv(rows){
+  if(!rows||rows.length<2){
+    document.getElementById('ksp-prov-content').innerHTML=errorHTML('ไม่พบข้อมูลในชีต กสป รวม');return;
+  }
+  let headerRowIdx = 0;
+  for(let i=0;i<Math.min(10,rows.length);i++){
+    if(rows[i].some(c => c && (c.includes('อำเภอ') || c.includes('สถานบริการ')))){ headerRowIdx=i; break; }
+  }
+  let dataStart = headerRowIdx + 1;
+  let header = rows[headerRowIdx];
+  const hl=header.map(h=>(h||'').toLowerCase());
+  
+  let colD=hl.findIndex(h=>h.includes('อำเภอ')||h.includes('สถานบริการ')||h.includes('หน่วยบริการ'));
+  if(colD===-1) colD=0;
+  let colL=header.length-1;
+  while(colL>colD&&(!header[colL]||header[colL]===''||header[colL].toLowerCase()==='ผลงาน')) colL--;
+  let colP=colL>colD+1?colL-1:colL;
+
+  const data=rows.slice(dataStart).filter(r=>r[colD]&&r[colD].trim()!==''&&!r[colD].includes('รวม'));
+  let totAll=0,prevAll=0;
+  data.forEach(r=>{ totAll+=num(r[colL]); prevAll+=num(r[colP]); });
+
+  document.getElementById('ksp-prov-content').innerHTML=`
+    <div class="summary-grid">
+      ${summaryCard('🏥','ยอดรวมจังหวัดสุโขทัย (กสป)',totAll.toLocaleString(),totAll-prevAll,`อัปเดต: ${header[colL]||'ล่าสุด'}`,'c1')}
+      ${summaryCard('📋','จำนวนอำเภอ',data.length,0,'แห่ง','c2')}
+    </div>
+    <div class="section-title">📊 กราฟผลงานระดับอำเภอ (${header[colL]||'ล่าสุด'})</div>
+    <div class="chart-card"><canvas id="kspProvBarChart"></canvas></div>
+    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ</div>
+    <div class="table-card"><table>
+      <thead><tr><th>#</th><th>อำเภอ</th>
+        <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${header[colP]||'ก่อนหน้า'}</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">${header[colL]||'ล่าสุด'}</span></th>
+        <th>ส่วนต่าง</th></tr></thead>
+      <tbody id="ksp-prov-tbody"></tbody>
+    </table></div>`;
+
+  const sorted=[...data].sort((a,b)=>num(b[colL])-num(a[colL]));
+  const tbody=document.getElementById('ksp-prov-tbody');
+  sorted.forEach((r,i)=>{
+    const p=num(r[colP]),t=num(r[colL]),d=t-p;
+    const isMe = (r[colD] || '').includes('กงไกรลาศ');
+    const badge=d>0?`<span class="tag-up">+${d.toLocaleString()}</span>` :d<0?`<span class="tag-down">${d.toLocaleString()}</span>` :`<span class="tag-zero">±0</span>`;
+    tbody.innerHTML+=`<tr class="${isMe ? 'highlight-row' : ''}">
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td><strong>${r[colD]||''}</strong> ${isMe ? '<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>' : ''}</td>
+      <td>${p.toLocaleString()}</td>
+      <td><strong>${t.toLocaleString()}</strong></td>
+      <td>${badge}</td></tr>`;
+  });
+
+  if(kspProvChart) kspProvChart.destroy();
+  kspProvChart=new Chart(document.getElementById('kspProvBarChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:sorted.map(r=>r[colD]||''),
+      datasets:[{label:`ยอดรวม (${header[colL]||'ล่าสุด'})`,data:sorted.map(r=>num(r[colL])),backgroundColor:'rgba(162,96,233,0.7)',borderRadius:8}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
+      scales:{x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}}}
+  });
+}
+
+/* ══ MAIN PROCESS ══ */
+async function loadAllData(){
+  updateDate();
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>';
+  document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อ.กงไกรลาศ…</div>';
+  document.getElementById('hdc-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div>';
+  document.getElementById('ksp-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป จ.สุโขทัย…</div>';
+
+  // โหลด HDC API และ Sheet ของอำเภอ
+  Promise.all([
+    fetchHdcApi().catch(e => { throw e; }),
+    fetchSheetFixed('HDC').catch(e => null) 
+  ]).then(([apiData, sheetData]) => {
+    renderHdcFromApi(apiData, sheetData); // หน้า 1 (อ.กงไกรลาศ)
+    renderHdcProvFromApi(apiData, sheetData); // หน้า 3 (ระดับจังหวัด)
+  }).catch(e => {
+    console.error(e);
+    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: '+e.message);
+    document.getElementById('hdc-prov-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ระดับจังหวัด ไม่สำเร็จ: '+e.message);
+  });
+
+  // โหลด กสป อ.กงไกรลาศ
   fetchSheetFixed(SHEET_KSP).then(renderKSP).catch(e=>{
-    document.getElementById('ksp-content').innerHTML=
-      errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: '+e.message);
+    document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป อ.กงไกรลาศ ไม่สำเร็จ: '+e.message);
+  });
+
+  // โหลด กสป รวม (ระดับจังหวัด)
+  fetchSheetFixed(SHEET_KSP_ALL).then(renderKspProv).catch(e=>{
+    document.getElementById('ksp-prov-content').innerHTML = errorHTML('โหลดข้อมูล กสป ระดับจังหวัด ไม่สำเร็จ (เช็คชื่อ Sheet ต้องเป็น "กสป รวม"): '+e.message);
   });
 }
 
