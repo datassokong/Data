@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <style>
   :root {
     --bg-deep:    #0d0a2e;
@@ -214,7 +215,6 @@
   }
   .table-card tbody tr { transition: background .15s; }
   .table-card tbody tr:hover { background: rgba(255,255,255,0.05); }
-  .highlight-row { background: rgba(108,99,255,0.1) !important; }
   .tag-up   { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; background:rgba(67,233,123,0.15); color:var(--accent3); }
   .tag-down { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; background:rgba(253,99,107,0.15); color:#fd636b; }
   .tag-zero { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:600; background:rgba(255,255,255,0.06); color:var(--text-muted); }
@@ -234,13 +234,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── Progress bar ── */
-  .bar-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
-  .bar-name { font-size:.82rem; min-width:130px; color:var(--text-muted); }
-  .bar-outer { flex:1; height:9px; background:rgba(255,255,255,0.08); border-radius:99px; overflow:hidden; }
-  .bar-inner { height:100%; border-radius:99px; background:linear-gradient(90deg,var(--accent1),var(--accent2)); transition: width .6s ease; }
-  .bar-val { font-size:.82rem; font-weight:700; min-width:70px; text-align:right; }
-
   /* ── Footer ── */
   .footer { text-align:center; font-size:.75rem; color:var(--text-muted); margin-top:36px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.07); }
 
@@ -259,7 +252,7 @@
       <div class="logo-icon">🏥</div>
       <div class="header-title">
         <h1>Telemedicine Dashboard</h1>
-        <p>เครือข่ายอำเภอกงไกรลาศ · จังหวัดสุโขทัย</p>
+        <p>เฉพาะเครือข่ายอำเภอกงไกรลาศ · จังหวัดสุโขทัย</p>
       </div>
     </div>
     <div class="header-right">
@@ -269,13 +262,13 @@
   </div>
 
   <div class="tab-bar">
-    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 ข้อมูล HDC</button>
+    <button class="tab-btn active" onclick="switchTab('hdc',this)">📊 ข้อมูล HDC (API)</button>
     <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ ข้อมูล กสป</button>
   </div>
 
   <div class="panel active" id="panel-hdc">
     <div id="hdc-content">
-      <div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูลจาก Google Sheets…</div>
+      <div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย…</div>
     </div>
   </div>
 
@@ -286,20 +279,53 @@
   </div>
 
   <div class="footer">
-    ข้อมูลจาก Google Sheets · ระบบตรวจจับคอลัมน์อัจฉริยะ 2.0 · Telemedicine Dashboard v4.2
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · กรองเฉพาะอำเภอกงไกรลาศ · Telemedicine Dashboard v5.2<br>
+    ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
 
 <script>
 /* ── CONFIG ── */
 const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
-const SHEET_HDC = 'HDC';
 const SHEET_KSP = 'กสป';
 
-let hdcData = [], kspData = [];
+let kspData = [];
 let hdcChart = null, kspChart = null;
 
-/* ══ FETCH FROM GOOGLE SHEETS ══ */
+/* ══ 1. FETCH FROM MOPH API (HDC) แบบใช้ jQuery (ตามโค้ดตัวอย่าง) ══ */
+async function fetchHdcApi() {
+  return new Promise((resolve, reject) => {
+    var settings = {
+      "url": "https://opendata.moph.go.th/api/report_data",
+      "method": "POST",
+      "headers": { "Content-Type": "application/json" },
+      "data": JSON.stringify({
+        "tableName": "s_telemed_hosp",
+        "year": "2569",
+        "province": "64",
+        "type": "json"
+      }),
+    };
+    
+    $.ajax(settings)
+      .done(function (response) {
+        console.log("✅ HDC API Response:", response);
+        // ตรวจสอบและแปลงข้อมูล เผื่อ API ส่งมาเป็น String ที่ยังไม่ได้ Parse
+        let parsedData = response;
+        if (typeof response === 'string') {
+            try { parsedData = JSON.parse(response); } 
+            catch(e) { console.warn("Parse JSON failed", e); }
+        }
+        resolve(parsedData);
+      })
+      .fail(function (jqXHR, textStatus, errorThrown) {
+        console.error("❌ HDC API Error:", textStatus, errorThrown);
+        reject(new Error("เชื่อมต่อ API สุโขทัยไม่สำเร็จ (" + textStatus + ") อาจติดปัญหา CORS"));
+      });
+  });
+}
+
+/* ══ 2. FETCH FROM GOOGLE SHEETS (กสป) ══ */
 async function fetchSheet(sheetName) {
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
   const res = await fetch(url);
@@ -316,21 +342,19 @@ async function fetchSheet(sheetName) {
   });
 }
 
+/* ══ HELPERS ══ */
 function num(v) {
   if (v == null || v === '') return 0;
   const n = parseFloat(String(v).replace(/,/g,''));
   return isNaN(n) ? 0 : n;
 }
 
-/* ══ DATE ══ */
 function updateDate() {
   const d = new Date();
   const opts = { year:'numeric', month:'long', day:'numeric', weekday:'long', timeZone:'Asia/Bangkok' };
-  document.getElementById('dateBadge').textContent =
-    '📅 ' + d.toLocaleDateString('th-TH', opts);
+  document.getElementById('dateBadge').textContent = '📅 ' + d.toLocaleDateString('th-TH', opts);
 }
 
-/* ══ SWITCH TAB ══ */
 function switchTab(name, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -338,147 +362,137 @@ function switchTab(name, btn) {
   document.getElementById('panel-' + name).classList.add('active');
 }
 
+function summaryCard(icon, label, val, delta, sub, cls) {
+  let dStr = `<span class="card-delta delta-zero">±0</span>`;
+  if (delta > 0) dStr = `<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`;
+  else if (delta < 0) dStr = `<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`;
+  
+  if (delta === 0 && sub.includes('ปี')) dStr = ''; // ซ่อนสัญลักษณ์ ±0 ถ้าเป็นยอดรวมทั้งปี
+  
+  return `
+    <div class="summary-card ${cls}">
+      <div class="card-icon">${icon}</div>
+      <div class="card-label">${label}</div>
+      <div class="card-value">${val}</div>
+      ${dStr}
+      <div class="card-sub">${sub}</div>
+    </div>`;
+}
+
+function errorHTML(msg) {
+  return `<div class="loading-state">
+    <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+    <p style="color:#ff6b6b">${msg}</p>
+    <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
+      <b>วิธีตรวจสอบ:</b> กดปุ่ม F12 ที่คีย์บอร์ด เลือกแท็บ Console เพื่อดูรายละเอียด Error สีแดง
+    </p>
+    <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
+  </div>`;
+}
+
 /* ══════════════════════════════════
-   RENDER HDC PANEL (FIXED DATA ROW DETECT)
+   RENDER HDC (จาก API JSON + กรองกงไกรลาศ)
 ══════════════════════════════════ */
-function renderHDC(rows) {
-  if (!rows || rows.length < 2) {
-    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูลในชีต HDC');
+function renderHdcFromApi(jsonData) {
+  let dataArray = [];
+  if (Array.isArray(jsonData)) dataArray = jsonData;
+  else if (jsonData && Array.isArray(jsonData.data)) dataArray = jsonData.data;
+  else if (jsonData && Array.isArray(jsonData.result)) dataArray = jsonData.result;
+
+  if (!dataArray || dataArray.length === 0) {
+    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูล Array ใน API ที่ส่งกลับมา');
     return;
   }
 
-  // 1. หาจุดเริ่มต้นของข้อมูลจริงอย่างแม่นยำ (ต้องเป็นชื่อ รพ. เท่านั้น ป้องกันการดึงหัวตาราง)
-  let dataStartIndex = 1; 
-  for (let i = 0; i < Math.min(10, rows.length); i++) {
-    const firstCol = (rows[i][0] || '').trim();
-    // ถ้าช่องแรกขึ้นต้นด้วย รพ. หรือมีคำว่ากงไกรลาศ และต้องไม่ใช่คำว่า สถานบริการ หรือ อำเภอ
-    if (firstCol && (firstCol.startsWith('รพ') || firstCol.includes('กงไกรลาศ'))) {
-      if (!firstCol.includes('สถานบริการ') && !firstCol.includes('อำเภอ')) {
-        dataStartIndex = i;
-        break;
-      }
-    }
-  }
+  // ค้นหา Key ชื่อหน่วยบริการ และ ค่ายอดรวม อัตโนมัติ
+  const sampleKeys = Object.keys(dataArray[0]);
+  let nameKey = sampleKeys.find(k => /hosp_?name|hospital|amp_?name|name/i.test(k)) || sampleKeys[0];
+  let valKey = sampleKeys.find(k => /result|total|sum|count|telemed/i.test(k));
+  if (!valKey) valKey = sampleKeys.find(k => typeof dataArray[0][k] === 'number' || !isNaN(num(dataArray[0][k])));
 
-  // 2. สร้าง Header อัจฉริยะ (ดึงเฉพาะบรรทัดที่เป็น Header จริงๆ)
-  let header = [];
-  let maxCols = 0;
-  for(let i=0; i<dataStartIndex; i++) if(rows[i].length > maxCols) maxCols = rows[i].length;
-
-  for (let c = 0; c < maxCols; c++) {
-    let colName = '';
-    for (let r = 0; r < dataStartIndex; r++) {
-      if (rows[r][c] && rows[r][c].trim() !== '') {
-        colName = rows[r][c].trim();
-      }
-    }
-    header[c] = colName;
-  }
-
-  const headerLower = header.map(h => (h||'').toLowerCase());
-  let colDistrict = headerLower.findIndex(h => h.includes('อำเภอ') || h.includes('สถานบริการ') || h.includes('หน่วยบริการ'));
-  if (colDistrict === -1) colDistrict = 0;
-
-  // 3. หาคอลัมน์ล่าสุดและก่อนหน้า
-  let colLatest = header.length - 1;
-  while(colLatest > colDistrict && (!header[colLatest] || header[colLatest] === '' || header[colLatest].toLowerCase() === 'ผลงาน')) {
-    colLatest--;
-  }
-  let colPrev = colLatest > colDistrict + 1 ? colLatest - 1 : colLatest;
-
-  // กรองเอาเฉพาะแถวข้อมูล
-  const data = rows.slice(dataStartIndex).filter(r => 
-    r[colDistrict] && r[colDistrict].trim() !== '' && !r[colDistrict].includes('รวม')
-  );
-
-  let totAll = 0, prevAll = 0;
-  let totRph = 0, totHos = 0;
-  let myTotal = 0, myPrev = 0;
-
-  const isHospitalRowFormat = data.some(r => r[colDistrict] && r[colDistrict].includes('รพ.สต'));
-
-  data.forEach(r => {
-    const valLatest = num(r[colLatest]);
-    const valPrev = num(r[colPrev]);
-    const name = r[colDistrict] || '';
-    
-    totAll += valLatest;
-    prevAll += valPrev;
-
-    if (isHospitalRowFormat) {
-      if (name.includes('รพ.สต')) totHos += valLatest;
-      else if (name.includes('รพ.')) totRph += valLatest;
-    }
-
-    if (name.includes('กงไกรลาศ')) {
-      myTotal += valLatest;
-      myPrev += valPrev;
-    }
+  // 🎯 กรองข้อมูล API ให้เหลือเฉพาะเครือข่ายอำเภอกงไกรลาศ
+  let kkDataArray = dataArray.filter(row => {
+    let str = JSON.stringify(row).replace(/\s/g, '');
+    return str.includes('กงไกรลาศ') || str.includes('06404');
   });
+  
+  if (kkDataArray.length === 0 && dataArray.length > 0) {
+     const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด'];
+     kkDataArray = dataArray.filter(row => {
+       const hname = String(row[nameKey] || '');
+       return kkHospNames.some(k => hname.includes(k));
+     });
+  }
 
-  const totDelta = totAll - prevAll;
-  const myDelta = myTotal - myPrev;
+  dataArray = kkDataArray;
+
+  if(dataArray.length === 0) {
+      document.getElementById('hdc-content').innerHTML = errorHTML('ดึงข้อมูล API ได้ แต่ไม่พบรายชื่อ รพ. ในอำเภอกงไกรลาศ');
+      return;
+  }
+
+  let totAll = 0, totRph = 0, totHos = 0;
+  let facCount = dataArray.length;
+
+  dataArray.forEach(row => {
+    let name = String(row[nameKey] || '');
+    let val = num(row[valKey]);
+
+    totAll += val;
+    if (name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += val;
+    else totRph += val;
+  });
 
   document.getElementById('hdc-content').innerHTML = `
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งหมด (HDC)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
-      ${summaryCard('🏢','เฉพาะ รพ. (HDC)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
-      ${summaryCard('🏘️','เฉพาะ รพ.สต. (HDC)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','รพ.กงไกรลาศ (HDC)', myTotal.toLocaleString(), myDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c4')}
+      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (API)', totAll.toLocaleString(), 0, `ปี 2569`, 'c1')}
+      ${summaryCard('🏢','รพ.กงไกรลาศ (API)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
+      ${summaryCard('🏘️','รวม รพ.สต. (API)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
+      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
     </div>
 
-    <div class="section-title">📊 กราฟผลรวมรายหน่วยบริการ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
+    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (HDC API)</div>
     <div class="chart-card">
       <canvas id="hdcBarChart"></canvas>
     </div>
 
-    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (HDC)</div>
+    <div class="section-title">📋 ตารางผลงานหน่วยบริการ (เฉพาะกงไกรลาศ)</div>
     <div class="table-card">
       <table>
         <thead><tr>
-          <th>#</th><th>สถานบริการ</th>
-          <th>ยอดก่อนหน้า<br><span style="font-size:0.65rem;opacity:0.7">${header[colPrev]||'ก่อนหน้า'}</span></th>
-          <th>ยอดล่าสุด<br><span style="font-size:0.65rem;color:var(--accent3)">${header[colLatest]||'ล่าสุด'}</span></th>
-          <th>ส่วนต่าง</th>
+          <th>#</th><th>หน่วยบริการ</th>
+          <th>ผลงานสะสม (ครั้ง)</th>
         </tr></thead>
         <tbody id="hdc-tbody"></tbody>
       </table>
     </div>
   `;
 
-  const sorted = [...data].sort((a,b) => num(b[colLatest]) - num(a[colLatest]));
+  // จัดเรียงข้อมูลจากมากไปน้อย
+  const sorted = [...dataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
   const tbody = document.getElementById('hdc-tbody');
 
   sorted.forEach((r, i) => {
-    const district = r[colDistrict] || '';
-    const prev = num(r[colPrev]);
-    const tot  = num(r[colLatest]);
-    const del  = tot - prev;
-    const isMe = district.includes('กงไกรลาศ');
-
-    let badge = `<span class="tag-zero">±0</span>`;
-    if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
-    else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
+    const name = String(r[nameKey] || 'ไม่ระบุ');
+    const val = num(r[valKey]);
 
     tbody.innerHTML += `
-      <tr class="${isMe?'highlight-row':''}">
+      <tr>
         <td style="color:var(--text-muted)">${i+1}</td>
-        <td><strong>${district}</strong> ${isMe?'<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>':''}</td>
-        <td>${prev.toLocaleString()}</td>
-        <td><strong>${tot.toLocaleString()}</strong></td>
-        <td>${badge}</td>
+        <td><strong>${name}</strong></td>
+        <td><strong>${val.toLocaleString()}</strong></td>
       </tr>`;
   });
 
+  // สร้าง Chart
   if (hdcChart) hdcChart.destroy();
   const ctx = document.getElementById('hdcBarChart').getContext('2d');
-  const labels = sorted.map(r => r[colDistrict]||'');
-  const values = sorted.map(r => num(r[colLatest]));
-  const colors = labels.map(l => l.includes('กงไกรลาศ') ? 'rgba(108,99,255,0.9)' : 'rgba(0,198,255,0.55)');
+  const labels = sorted.map(r => String(r[nameKey] || ''));
+  const values = sorted.map(r => num(r[valKey]));
   
   hdcChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: colors, borderRadius: 8 }] },
+    data: { labels, datasets: [{ label: 'ยอดสะสม (ครั้ง)', data: values, backgroundColor: 'rgba(0,198,255,0.7)', borderRadius: 8 }] },
     options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
       scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
     }
@@ -486,7 +500,7 @@ function renderHDC(rows) {
 }
 
 /* ══════════════════════════════════
-   RENDER กสป PANEL (FIXED DATA ROW DETECT)
+   RENDER กสป (จาก GOOGLE SHEETS เฉพาะกงไกรลาศ)
 ══════════════════════════════════ */
 function renderKSP(rows) {
   if (!rows || rows.length < 2) {
@@ -512,9 +526,7 @@ function renderKSP(rows) {
   for (let c = 0; c < maxCols; c++) {
     let colName = '';
     for (let r = 0; r < dataStartIndex; r++) {
-      if (rows[r][c] && rows[r][c].trim() !== '') {
-        colName = rows[r][c].trim();
-      }
+      if (rows[r][c] && rows[r][c].trim() !== '') colName = rows[r][c].trim();
     }
     header[c] = colName;
   }
@@ -535,8 +547,7 @@ function renderKSP(rows) {
 
   let totAll = 0, prevAll = 0;
   let totRph = 0, totHos = 0;
-  let myTotal = 0, myPrev = 0;
-  const isHospitalRowFormat = data.some(r => r[colDistrict] && r[colDistrict].includes('รพ.สต'));
+  let facCount = data.length;
 
   data.forEach(r => {
     const valLatest = num(r[colLatest]);
@@ -546,38 +557,30 @@ function renderKSP(rows) {
     totAll += valLatest;
     prevAll += valPrev;
 
-    if (isHospitalRowFormat) {
-      if (name.includes('รพ.สต')) totHos += valLatest;
-      else if (name.includes('รพ.')) totRph += valLatest;
-    }
-
-    if (name.includes('กงไกรลาศ')) {
-      myTotal += valLatest;
-      myPrev += valPrev;
-    }
+    if (name.includes('รพ.สต')) totHos += valLatest;
+    else totRph += valLatest;
   });
 
   const totDelta = totAll - prevAll;
-  const myDelta = myTotal - myPrev;
 
   document.getElementById('ksp-content').innerHTML = `
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งหมด (กสป)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
-      ${summaryCard('🏢','เฉพาะ รพ. (กสป)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
-      ${summaryCard('🏘️','เฉพาะ รพ.สต. (กสป)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
-      ${summaryCard('📍','รพ.กงไกรลาศ (กสป)', myTotal.toLocaleString(), myDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c4')}
+      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (กสป)', totAll.toLocaleString(), totDelta, `อัปเดต: ${header[colLatest]||'ล่าสุด'}`, 'c1')}
+      ${summaryCard('🏢','รพ.กงไกรลาศ (กสป)', totRph.toLocaleString(), 0, 'สะสม', 'c2')}
+      ${summaryCard('🏘️','รวม รพ.สต. (กสป)', totHos.toLocaleString(), 0, 'สะสม', 'c3')}
+      ${summaryCard('📍','จำนวนหน่วยบริการ', facCount.toLocaleString(), 0, `แห่ง`, 'c4')}
     </div>
 
-    <div class="section-title">📊 กราฟผลรวมรายหน่วยบริการ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
+    <div class="section-title">📊 กราฟผลงานรายหน่วยบริการในอำเภอ (ยอดล่าสุด: ${header[colLatest]||'ล่าสุด'})</div>
     <div class="chart-card">
       <canvas id="kspBarChart"></canvas>
     </div>
 
-    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (กสป)</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ (เฉพาะกงไกรลาศ)</div>
     <div class="table-card">
       <table>
         <thead><tr>
-          <th>#</th><th>สถานบริการ</th>
+          <th>#</th><th>หน่วยบริการ</th>
           <th>ยอดก่อนหน้า<br><span style="font-size:0.65rem;opacity:0.7">${header[colPrev]||'ก่อนหน้า'}</span></th>
           <th>ยอดล่าสุด<br><span style="font-size:0.65rem;color:var(--accent3)">${header[colLatest]||'ล่าสุด'}</span></th>
           <th>ส่วนต่าง</th>
@@ -595,16 +598,15 @@ function renderKSP(rows) {
     const prev = num(r[colPrev]);
     const tot  = num(r[colLatest]);
     const del  = tot - prev;
-    const isMe = district.includes('กงไกรลาศ');
 
     let badge = `<span class="tag-zero">±0</span>`;
     if (del > 0) badge = `<span class="tag-up">+${del.toLocaleString()}</span>`;
     else if (del < 0) badge = `<span class="tag-down">${del.toLocaleString()}</span>`;
 
     tbody.innerHTML += `
-      <tr class="${isMe?'highlight-row':''}">
+      <tr>
         <td style="color:var(--text-muted)">${i+1}</td>
-        <td><strong>${district}</strong> ${isMe?'<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>':''}</td>
+        <td><strong>${district}</strong></td>
         <td>${prev.toLocaleString()}</td>
         <td><strong>${tot.toLocaleString()}</strong></td>
         <td>${badge}</td>
@@ -615,60 +617,33 @@ function renderKSP(rows) {
   const ctx = document.getElementById('kspBarChart').getContext('2d');
   const labels = sorted.map(r => r[colDistrict]||'');
   const values = sorted.map(r => num(r[colLatest]));
-  const colors = labels.map(l => l.includes('กงไกรลาศ') ? 'rgba(108,99,255,0.9)' : 'rgba(162,96,233,0.55)');
   
   kspChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: colors, borderRadius: 8 }] },
+    data: { labels, datasets: [{ label:`ยอดรวม (${header[colLatest]||'ล่าสุด'})`, data: values, backgroundColor: 'rgba(162,96,233,0.7)', borderRadius: 8 }] },
     options: { responsive: true, plugins: { legend:{ labels:{color:'#fff',font:{family:'Sarabun'}} } },
       scales: { x: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} }, y: { ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}} } }
     }
   });
 }
 
-/* ══ Helpers ══ */
-function summaryCard(icon, label, val, delta, sub, cls) {
-  let dStr = `<span class="card-delta delta-zero">±0</span>`;
-  if (delta > 0) dStr = `<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`;
-  else if (delta < 0) dStr = `<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`;
-  
-  return `
-    <div class="summary-card ${cls}">
-      <div class="card-icon">${icon}</div>
-      <div class="card-label">${label}</div>
-      <div class="card-value">${val}</div>
-      ${dStr}
-      <div class="card-sub">${sub}</div>
-    </div>`;
-}
-
-function errorHTML(msg) {
-  return `<div class="loading-state">
-    <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
-    <p style="color:#ff6b6b">${msg}</p>
-    <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
-      โปรดตรวจสอบว่า Google Sheet ไปที่ "ไฟล์" > "แชร์" > "เผยแพร่ทางเว็บ" แล้ว
-    </p>
-    <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
-  </div>`;
-}
-
 /* ══ LOAD ALL ══ */
 async function loadAllData() {
   updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล HDC…</div>';
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย…</div>';
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   try {
-    hdcData = await fetchSheet(SHEET_HDC);
-    renderHDC(hdcData);
+    const apiData = await fetchHdcApi();
+    renderHdcFromApi(apiData);
   } catch(e) {
-    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล HDC ไม่สำเร็จ: ' + e.message);
+    console.error("API Error:", e);
+    document.getElementById('hdc-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: ' + e.message);
   }
 
   try {
-    kspData = await fetchSheet(SHEET_KSP);
-    renderKSP(kspData);
+    const kspRows = await fetchSheet(SHEET_KSP);
+    renderKSP(kspRows);
   } catch(e) {
     document.getElementById('ksp-content').innerHTML = errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: ' + e.message);
   }
