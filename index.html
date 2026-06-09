@@ -63,6 +63,7 @@
   .table-card td{padding:13px 18px;font-size:0.88rem;border-top:1px solid rgba(255,255,255,0.05)}
   .table-card tbody tr{transition:background .15s}
   .table-card tbody tr:hover{background:rgba(255,255,255,0.05)}
+  .highlight-row { background: rgba(108,99,255,0.1) !important; }
   .tag-up{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:700;background:rgba(67,233,123,0.15);color:var(--accent3)}
   .tag-down{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:700;background:rgba(253,99,107,0.15);color:#fd636b}
   .tag-zero{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:600;background:rgba(255,255,255,0.06);color:var(--text-muted)}
@@ -97,7 +98,7 @@
 
   <div class="panel active" id="panel-hdc">
     <div id="hdc-content">
-      <div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย…</div>
+      <div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>
     </div>
   </div>
   <div class="panel" id="panel-ksp">
@@ -107,7 +108,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ GAS Proxy · Telemedicine Dashboard v6.1<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบเปรียบเทียบอัตโนมัติ 16 แห่ง · Telemedicine Dashboard v6.2<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -119,8 +120,7 @@ const SHEET_ID  = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
 
 // ══════════════════════════════════════════════════════
-// รหัส hospcode ของทุกหน่วยบริการในอำเภอกงไกรลาศ
-// areacode ขึ้นต้นด้วย "6406" = อำเภอกงไกรลาศ (จ.สุโขทัย 64, อำเภอ 06)
+// รหัส hospcode และแผนที่ชื่อหน่วยบริการทั้ง 16 แห่ง
 // ══════════════════════════════════════════════════════
 const KK_HOSPCODES = new Set([
   '07402', '07403', '07404', '07405', '07406',
@@ -129,7 +129,6 @@ const KK_HOSPCODES = new Set([
   '14047'
 ]);
 
-// แผนที่ hospcode → ชื่อหน่วยบริการ (ใช้แสดงในตารางให้ครบ 16 แห่งเสมอ)
 const HOSP_NAMES = {
   '07402': 'รพ.สต.บ้านประดู่เฒ่า',
   '07403': 'รพ.สต.กง',
@@ -169,7 +168,8 @@ window.switchTab=function(name,btn){
 };
 function summaryCard(icon,label,val,delta,sub,cls){
   const d=delta>0?`<span class="card-delta delta-up">▲ +${Number(delta).toLocaleString()}</span>`
-           :delta<0?`<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`:'';
+           :delta<0?`<span class="card-delta delta-down">▼ ${Number(delta).toLocaleString()}</span>`
+           :`<span class="card-delta delta-zero">±0</span>`;
   return `<div class="summary-card ${cls}">
     <div class="card-icon">${icon}</div>
     <div class="card-label">${label}</div>
@@ -186,7 +186,7 @@ function errorHTML(msg,debug){
 }
 
 /* ══════════════════════════════════════════
-   FETCH HDC ผ่าน JSONP (ไม่มี CORS เลย)
+   FETCH HDC ผ่าน JSONP (GAS Proxy)
 ══════════════════════════════════════════ */
 function fetchHdcApi(){
   return new Promise((resolve,reject)=>{
@@ -218,86 +218,147 @@ function fetchHdcApi(){
 }
 
 /* ══════════════════════════════════════════
-   RENDER HDC — บังคับให้แสดงครบ 16 แห่ง และปรับตารางให้เหมือน กสป.
+   RENDER HDC (รวม API Latest + Sheet Previous)
 ══════════════════════════════════════════ */
-function renderHdcFromApi(jsonData){
+function renderHdcFromApi(jsonData, sheetRows) {
+  // 1. สร้างรายชื่อ 16 หน่วยบริการ (ป้องกัน รพ. ที่ได้ 0 หายไปจากจอ)
+  const byHosp = {};
+  Object.keys(HOSP_NAMES).forEach(hc => {
+    byHosp[hc] = { hospcode: hc, totalLatest: 0, totalPrev: 0 };
+  });
+
+  // 2. ดึงข้อมูลล่าสุด (Today) จาก API
   let all=[];
   if(Array.isArray(jsonData))          all=jsonData;
   else if(Array.isArray(jsonData?.data))   all=jsonData.data;
   else if(Array.isArray(jsonData?.result)) all=jsonData.result;
 
-  if(!all.length){
-    document.getElementById('hdc-content').innerHTML=
-      errorHTML('เชื่อมต่อได้ แต่ไม่พบข้อมูล',JSON.stringify(jsonData).substring(0,400));
-    return;
+  if(all && all.length > 0) {
+    all.forEach(r => {
+      const hc = String(r.hospcode || r.HOSPCODE || '').trim();
+      const val = num(r.result || r.RESULT || r.value || r.VALUE || 0);
+      
+      if (KK_HOSPCODES.has(hc)) {
+        byHosp[hc].totalLatest += val;
+      } else if (String(r.areacode || r.AREACODE || '').trim().startsWith('6406')) {
+        if(byHosp[hc]) byHosp[hc].totalLatest += val;
+      }
+    });
   }
 
-  // ── สร้างรายชื่อ 16 หน่วยบริการเตรียมไว้ก่อน (เพื่อไม่ให้ รพ. ที่เป็น 0 หายไป) ──
-  const byHosp = {};
-  Object.keys(HOSP_NAMES).forEach(hc => {
-    byHosp[hc] = { hospcode: hc, total: 0 };
-  });
-
-  // ── ดึงข้อมูลจาก API มาเติมลงในตัวแปรที่เตรียมไว้ ──
-  all.forEach(r => {
-    const hc = String(r.hospcode || r.HOSPCODE || '').trim();
-    const val = num(r.result || r.RESULT || r.value || r.VALUE || 0);
-    
-    // ถ้าเป็นรหัสใน 16 แห่ง ให้บวกยอดเข้าไป
-    if (KK_HOSPCODES.has(hc)) {
-      if (!byHosp[hc]) byHosp[hc] = { hospcode: hc, total: 0 }; 
-      byHosp[hc].total += val;
-    } 
-    // เผื่อมีบาง รพ. หลุดเข้ามาแต่ areacode เป็นของกงไกรลาศ
-    else if (String(r.areacode || r.AREACODE || '').trim().startsWith('6406')) {
-      if (!byHosp[hc]) byHosp[hc] = { hospcode: hc, total: 0 };
-      byHosp[hc].total += val;
+  // 3. ดึงยอดก่อนหน้า (Yesterday) จากแผ่น Google Sheet (แท็บ HDC)
+  let datePrevStr = 'ฐานข้อมูล';
+  if (sheetRows && sheetRows.length >= 2) {
+    let dataStart=1;
+    for(let i=0;i<Math.min(10,sheetRows.length);i++){
+      const fc=(sheetRows[i][0]||'').trim();
+      if(fc&&(fc.startsWith('รพ')||fc.includes('กงไกรลาศ'))&&
+         !fc.includes('สถานบริการ')&&!fc.includes('อำเภอ')){dataStart=i;break;}
     }
-  });
+    let header=[],maxCols=0;
+    for(let i=0;i<dataStart;i++) if(sheetRows[i].length>maxCols) maxCols=sheetRows[i].length;
+    for(let c=0;c<maxCols;c++){
+      let n='';
+      for(let r=0;r<dataStart;r++) if(sheetRows[r][c]&&sheetRows[r][c].trim()!=='') n=sheetRows[r][c].trim();
+      header[c]=n;
+    }
+    const hl=header.map(h=>(h||'').toLowerCase());
+    let colD=hl.findIndex(h=>h.includes('อำเภอ')||h.includes('สถานบริการ')||h.includes('หน่วยบริการ'));
+    if(colD===-1) colD=0;
+    let colL=header.length-1;
+    while(colL>colD&&(!header[colL]||header[colL]===''||header[colL].toLowerCase()==='ผลงาน')) colL--;
+    
+    datePrevStr = header[colL] || 'ฐานข้อมูล';
 
+    const sheetData = sheetRows.slice(dataStart).filter(r=>r[colD]&&r[colD].trim()!==''&&!r[colD].includes('รวม'));
+    sheetData.forEach(r=>{
+      const n = (r[colD]||'').replace(/\s/g, '');
+      const v = num(r[colL]); // คอลัมน์ขวาสุดของ Sheet ถือว่าเป็นยอดเมื่อวาน
+      
+      let matchedHc = null;
+      if(n.includes('ประดู่เฒ่า')) matchedHc = '07402';
+      else if(n.includes('กง') && !n.includes('กงไกรลาศ')) matchedHc = '07403';
+      else if(n.includes('ไกรนอก')) matchedHc = '07404';
+      else if(n.includes('ไกรกลาง')) matchedHc = '07405';
+      else if(n.includes('ไกรใน')) matchedHc = '07406';
+      else if(n.includes('หนองกระทุ่ม')) matchedHc = '07407';
+      else if(n.includes('ดงเดือย')) matchedHc = '07408';
+      else if(n.includes('ป่าแฝก')) matchedHc = '07409';
+      else if(n.includes('ปรักรัก')) matchedHc = '07410';
+      else if(n.includes('กกแรต')) matchedHc = '07411';
+      else if(n.includes('ท่าฉนวน')) matchedHc = '07412';
+      else if(n.includes('น้ำเรื่อง') || n.includes('น้ำเรือง')) matchedHc = '07413';
+      else if(n.includes('หนองตูม')) matchedHc = '07414';
+      else if(n.includes('ใหม่สุขเกษม')) matchedHc = '07415';
+      else if(n.includes('หนองหลอด')) matchedHc = '14047';
+      else if(n.includes('กงไกรลาศ') || n.includes('11246')) matchedHc = '11246';
+      
+      if (matchedHc && byHosp[matchedHc]) {
+          byHosp[matchedHc].totalPrev = v;
+      }
+    });
+  } else {
+      // ถ้าโหลด Sheet ไม่ได้ ให้ถือว่ายอดเดิม = ยอดปัจจุบัน เพื่อให้ผลต่างเป็น 0
+      Object.keys(byHosp).forEach(hc => {
+          byHosp[hc].totalPrev = byHosp[hc].totalLatest;
+      });
+      datePrevStr = 'ไม่พบฐานข้อมูล';
+  }
+
+  // 4. สรุปผลยอดรวม
   const hosps = Object.values(byHosp);
-  let totAll = 0, totRph = 0, totHos = 0;
+  let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
   hosps.forEach(h => {
-    totAll += h.total;
-    const name = HOSP_NAMES[h.hospcode] || ('รหัส ' + h.hospcode);
-    if(name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += h.total;
-    else totRph += h.total;
+    totAll += h.totalLatest;
+    prevAll += h.totalPrev;
+    const name = HOSP_NAMES[h.hospcode] || '';
+    if(name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += h.totalLatest;
+    else totRph += h.totalLatest;
   });
 
-  // แสดงผล UI ให้มีโครงสร้างตารางคล้ายกับ กสป.
+  const totDelta = totAll - prevAll;
+
   document.getElementById('hdc-content').innerHTML=`
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (API)',totAll.toLocaleString(),0,'ปี 2569','c1')}
-      ${summaryCard('🏢','ร.พ.กงไกรลาศ (API)',totRph.toLocaleString(),0,'สะสม','c2')}
-      ${summaryCard('🏘️','รวม รพ.สต. (API)',totHos.toLocaleString(),0,'สะสม','c3')}
+      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ปัจจุบัน (API)`,'c1')}
+      ${summaryCard('🏢','ร.พ.กงไกรลาศ (HDC)',totRph.toLocaleString(),0,'สะสม','c2')}
+      ${summaryCard('🏘️','รวม รพ.สต. (HDC)',totHos.toLocaleString(),0,'สะสม','c3')}
       ${summaryCard('📍','จำนวนหน่วยบริการ',hosps.length,0,'แห่ง','c4')}
     </div>
     <div class="section-title">📊 กราฟผลงานรายหน่วยบริการ (HDC API)</div>
     <div class="chart-card"><canvas id="hdcBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบ (รูปแบบ HDC)</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบอัตโนมัติ</div>
     <div class="table-card"><table>
       <thead><tr>
         <th>#</th><th>หน่วยบริการ</th>
-        <th>ยอดสะสมทั้งหมด<br><span style="font-size:.65rem;color:var(--accent3)">ข้อมูลจาก API</span></th>
-        <th>สถานะอัปเดต</th>
+        <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${datePrevStr}</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ปัจจุบัน (API)</span></th>
+        <th>ส่วนต่าง</th>
       </tr></thead>
       <tbody id="hdc-tbody"></tbody>
     </table></div>`;
 
-  // เรียงลำดับตามยอดสะสมจากมากไปน้อย
-  const sorted = [...hosps].sort((a,b) => b.total - a.total);
+  // เรียงลำดับตามยอดล่าสุดจากมากไปน้อย
+  const sorted = [...hosps].sort((a,b) => b.totalLatest - a.totalLatest);
   const tbody = document.getElementById('hdc-tbody');
   
   sorted.forEach((h,i) => {
     const name = HOSP_NAMES[h.hospcode] || ('รหัส ' + h.hospcode);
     const isMe = name.includes('กงไกรลาศ');
-    // ใช้ Badge ให้คล้ายกับส่วนต่างของ กสป.
-    const badge = h.total > 0 ? `<span class="tag-up">มีผลงาน</span>` : `<span class="tag-zero">รอข้อมูล</span>`;
+    
+    const p = h.totalPrev;
+    const t = h.totalLatest;
+    const d = t - p;
+
+    const badge = d > 0 ? `<span class="tag-up">+${d.toLocaleString()}</span>`
+                : d < 0 ? `<span class="tag-down">${d.toLocaleString()}</span>`
+                : `<span class="tag-zero">±0</span>`;
     
     tbody.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
       <td style="color:var(--text-muted)">${i+1}</td>
       <td><strong>${name}</strong> ${isMe ? '<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>' : ''}</td>
-      <td><strong>${h.total.toLocaleString()}</strong></td>
+      <td>${p.toLocaleString()}</td>
+      <td><strong>${t.toLocaleString()}</strong></td>
       <td>${badge}</td>
     </tr>`;
   });
@@ -307,7 +368,7 @@ function renderHdcFromApi(jsonData){
     type:'bar',
     data:{
       labels:sorted.map(h=>HOSP_NAMES[h.hospcode]||h.hospcode),
-      datasets:[{label:'ยอดสะสม (ครั้ง)',data:sorted.map(h=>h.total),
+      datasets:[{label:'ยอดสะสม (ครั้ง)',data:sorted.map(h=>h.totalLatest),
         backgroundColor:'rgba(0,198,255,0.7)',borderRadius:8}]
     },
     options:{responsive:true,
@@ -418,16 +479,23 @@ function renderKSP(rows){
 async function loadAllData(){
   updateDate();
   document.getElementById('hdc-content').innerHTML=
-    '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูลจากกระทรวงสาธารณสุข...</div>';
+    '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API และฐานข้อมูล...</div>';
   document.getElementById('ksp-content').innerHTML=
     '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
-  fetchHdcApi().then(renderHdcFromApi).catch(e=>{
+  // โหลด HDC (ดึง API มาประกบกับ Sheet)
+  Promise.all([
+    fetchHdcApi().catch(e => { throw e; }),
+    fetchSheetFixed('HDC').catch(e => null) // ใช้ Google Sheet เป็นฐานข้อมูล Backup เพื่อหายอดก่อนหน้า
+  ]).then(([apiData, sheetData]) => {
+    renderHdcFromApi(apiData, sheetData);
+  }).catch(e => {
     console.error(e);
     document.getElementById('hdc-content').innerHTML=
       errorHTML('โหลดข้อมูล API HDC ไม่สำเร็จ: '+e.message);
   });
 
+  // โหลด กสป
   fetchSheetFixed(SHEET_KSP).then(renderKSP).catch(e=>{
     document.getElementById('ksp-content').innerHTML=
       errorHTML('โหลดข้อมูล กสป ไม่สำเร็จ: '+e.message);
