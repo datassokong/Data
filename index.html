@@ -97,12 +97,12 @@
 <div class="wrapper">
   <div class="header">
     <div class="header-left">
-      <img src="logo MOPH.png" alt="MOPH Logo" style="width:56px;height:56px;border-radius:14px;object-fit:cover;background:#fff;padding:2px;box-shadow:0 4px 18px rgba(108,99,255,0.45);flex-shrink:0;">
+      <img src="https://img2.pic.in.th/logo-MOPH87f1eaf8a3029c00.png" alt="MOPH Logo" style="width:56px;height:56px;border-radius:14px;object-fit:cover;background:#fff;padding:2px;box-shadow:0 4px 18px rgba(108,99,255,0.45);flex-shrink:0;">
       <div class="header-title">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <h1>Telemedicine Dashboard</h1>
-          <img src="logo หมอพร้อม.png" alt="หมอพร้อม" style="height:32px; border-radius:6px; object-fit:contain; background:#fff; padding:2px;">
-          <img src="logo สอน บัดดี้.jpg" alt="สอน บัดดี้" style="height:32px; border-radius:6px; object-fit:contain;">
+          <img src="https://img2.pic.in.th/logo-64fbd58b93d7d81d.png" alt="หมอพร้อม" style="height:32px; border-radius:6px; object-fit:contain; background:#fff; padding:2px;">
+          <img src="https://img1.pic.in.th/images/logo--79972b1d4cc57468.jpg" alt="สอน บัดดี้" style="height:32px; border-radius:6px; object-fit:contain;">
         </div>
         <p>ระดับอำเภอและระดับจังหวัด · สุโขทัย</p>
       </div>
@@ -145,7 +145,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.3<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.5<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -201,21 +201,33 @@ const DISTRICT_NAMES = {
 };
 
 // ══════════════════════════════════════════════════════
-// ตัวแปรเก็บผลรวมระดับประเทศ
+// ตัวแปรเก็บผลรวมระดับประเทศ (แยกยอดล่าสุด และ ยอดก่อนหน้า)
 // ══════════════════════════════════════════════════════
 let globalTotals = {
-  hdcProv: 0,
-  kspProv: 0,
-  hdcDist: 0,
-  kspDist: 0
+  hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0,
+  hdcProvPrev: 0, kspProvPrev: 0, hdcDistPrev: 0, kspDistPrev: 0
 };
 
 function updateOverallTotals() {
   const provTotal = globalTotals.hdcProv + globalTotals.kspProv;
-  const distTotal = globalTotals.hdcDist + globalTotals.kspDist;
+  const provPrev = globalTotals.hdcProvPrev + globalTotals.kspProvPrev;
+  const provDelta = provTotal - provPrev;
   
-  document.getElementById('overall-prov').textContent = provTotal > 0 ? provTotal.toLocaleString() + ' ครั้ง' : 'รอข้อมูล...';
-  document.getElementById('overall-dist').textContent = distTotal > 0 ? distTotal.toLocaleString() + ' ครั้ง' : 'รอข้อมูล...';
+  const distTotal = globalTotals.hdcDist + globalTotals.kspDist;
+  const distPrev = globalTotals.hdcDistPrev + globalTotals.kspDistPrev;
+  const distDelta = distTotal - distPrev;
+  
+  const formatDelta = (delta) => {
+    if (delta > 0) return `<span style="color: var(--accent3); font-size: 1.2rem; font-weight: 700; margin-left: 8px;">(▲ +${delta.toLocaleString()})</span>`;
+    if (delta < 0) return `<span style="color: #fd636b; font-size: 1.2rem; font-weight: 700; margin-left: 8px;">(▼ ${delta.toLocaleString()})</span>`;
+    return `<span style="color: var(--text-muted); font-size: 1.2rem; font-weight: 700; margin-left: 8px;">(±0)</span>`;
+  };
+
+  const provHtml = provTotal > 0 ? `${provTotal.toLocaleString()} ครั้ง ${formatDelta(provDelta)}` : 'รอข้อมูล...';
+  const distHtml = distTotal > 0 ? `${distTotal.toLocaleString()} ครั้ง ${formatDelta(distDelta)}` : 'รอข้อมูล...';
+
+  document.getElementById('overall-prov').innerHTML = provHtml;
+  document.getElementById('overall-dist').innerHTML = distHtml;
 }
 
 let hdcChart=null, kspChart=null, hdcProvChart=null, kspProvChart=null;
@@ -387,6 +399,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
   
   // อัปเดตยอดรวมระดับอำเภอ
   globalTotals.hdcDist = totAll;
+  globalTotals.hdcDistPrev = prevAll;
   updateOverallTotals();
 
   document.getElementById('hdc-content').innerHTML=`
@@ -473,6 +486,7 @@ function renderKSP(rows){
 
   // อัปเดตยอดรวมระดับอำเภอ
   globalTotals.kspDist = totAll;
+  globalTotals.kspDistPrev = prevAll;
   updateOverallTotals();
 
   document.getElementById('ksp-content').innerHTML=`
@@ -593,6 +607,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
 
   // อัปเดตยอดรวมระดับจังหวัด
   globalTotals.hdcProv = totAll;
+  globalTotals.hdcProvPrev = prevAll;
   updateOverallTotals();
 
   document.getElementById('hdc-prov-content').innerHTML=`
@@ -669,6 +684,7 @@ function renderKspProv(rows){
 
   // อัปเดตยอดรวมระดับจังหวัด
   globalTotals.kspProv = totAll;
+  globalTotals.kspProvPrev = prevAll;
   updateOverallTotals();
 
   document.getElementById('ksp-prov-content').innerHTML=`
@@ -720,7 +736,7 @@ async function loadAllData(){
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   // รีเซ็ตตัวเลขทั้งหมด
-  globalTotals = { hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0 };
+  globalTotals = { hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0, hdcProvPrev: 0, kspProvPrev: 0, hdcDistPrev: 0, kspDistPrev: 0 };
   updateOverallTotals();
 
   // โหลด HDC API และ Sheet ของอำเภอ
