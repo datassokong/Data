@@ -108,7 +108,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบเปรียบเทียบอัตโนมัติ 16 แห่ง · Telemedicine Dashboard v6.2<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบเปรียบเทียบอัตโนมัติ 16 แห่ง · Telemedicine Dashboard v6.3<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -120,15 +120,8 @@ const SHEET_ID  = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
 
 // ══════════════════════════════════════════════════════
-// รหัส hospcode และแผนที่ชื่อหน่วยบริการทั้ง 16 แห่ง
+// บังคับกำหนดรายชื่อหน่วยบริการทั้ง 16 แห่ง เพื่อป้องกัน API ส่งข้อมูลมาไม่ครบ
 // ══════════════════════════════════════════════════════
-const KK_HOSPCODES = new Set([
-  '07402', '07403', '07404', '07405', '07406',
-  '07407', '07408', '07409', '07410', '07411',
-  '07412', '07413', '07414', '07415', '11246',
-  '14047'
-]);
-
 const HOSP_NAMES = {
   '07402': 'รพ.สต.บ้านประดู่เฒ่า',
   '07403': 'รพ.สต.กง',
@@ -221,13 +214,13 @@ function fetchHdcApi(){
    RENDER HDC (รวม API Latest + Sheet Previous)
 ══════════════════════════════════════════ */
 function renderHdcFromApi(jsonData, sheetRows) {
-  // 1. สร้างรายชื่อ 16 หน่วยบริการ (ป้องกัน รพ. ที่ได้ 0 หายไปจากจอ)
+  // 1. สร้างรายชื่อ 16 หน่วยบริการเตรียมรอไว้ (บังคับ 16 แห่ง)
   const byHosp = {};
   Object.keys(HOSP_NAMES).forEach(hc => {
     byHosp[hc] = { hospcode: hc, totalLatest: 0, totalPrev: 0 };
   });
 
-  // 2. ดึงข้อมูลล่าสุด (Today) จาก API
+  // 2. ดึงข้อมูลล่าสุด (Today) จาก API 
   let all=[];
   if(Array.isArray(jsonData))          all=jsonData;
   else if(Array.isArray(jsonData?.data))   all=jsonData.data;
@@ -238,10 +231,9 @@ function renderHdcFromApi(jsonData, sheetRows) {
       const hc = String(r.hospcode || r.HOSPCODE || '').trim();
       const val = num(r.result || r.RESULT || r.value || r.VALUE || 0);
       
-      if (KK_HOSPCODES.has(hc)) {
+      // บันทึกเฉพาะข้อมูลในเครือข่าย 16 แห่งของเราเท่านั้น
+      if (byHosp[hc]) {
         byHosp[hc].totalLatest += val;
-      } else if (String(r.areacode || r.AREACODE || '').trim().startsWith('6406')) {
-        if(byHosp[hc]) byHosp[hc].totalLatest += val;
       }
     });
   }
@@ -275,6 +267,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
       const n = (r[colD]||'').replace(/\s/g, '');
       const v = num(r[colL]); // คอลัมน์ขวาสุดของ Sheet ถือว่าเป็นยอดเมื่อวาน
       
+      // Matching เพื่อนำยอดมาใส่ให้ตรงกับ Hospcode
       let matchedHc = null;
       if(n.includes('ประดู่เฒ่า')) matchedHc = '07402';
       else if(n.includes('กง') && !n.includes('กงไกรลาศ')) matchedHc = '07403';
@@ -305,7 +298,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
       datePrevStr = 'ไม่พบฐานข้อมูล';
   }
 
-  // 4. สรุปผลยอดรวม
+  // 4. สรุปผลยอดรวมทั้งหมด (รับประกันว่ามีครบ 16 แน่นอน)
   const hosps = Object.values(byHosp);
   let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
   hosps.forEach(h => {
@@ -318,9 +311,10 @@ function renderHdcFromApi(jsonData, sheetRows) {
 
   const totDelta = totAll - prevAll;
 
+  // Render UI ส่วนตาราง HDC ให้เหมือน กสป
   document.getElementById('hdc-content').innerHTML=`
     <div class="summary-grid">
-      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ปัจจุบัน (API)`,'c1')}
+      ${summaryCard('🏥','ยอดรวมทั้งอำเภอ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ล่าสุด (API)`,'c1')}
       ${summaryCard('🏢','ร.พ.กงไกรลาศ (HDC)',totRph.toLocaleString(),0,'สะสม','c2')}
       ${summaryCard('🏘️','รวม รพ.สต. (HDC)',totHos.toLocaleString(),0,'สะสม','c3')}
       ${summaryCard('📍','จำนวนหน่วยบริการ',hosps.length,0,'แห่ง','c4')}
@@ -332,7 +326,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
       <thead><tr>
         <th>#</th><th>หน่วยบริการ</th>
         <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${datePrevStr}</span></th>
-        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ปัจจุบัน (API)</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">ล่าสุด (API)</span></th>
         <th>ส่วนต่าง</th>
       </tr></thead>
       <tbody id="hdc-tbody"></tbody>
@@ -368,7 +362,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
     type:'bar',
     data:{
       labels:sorted.map(h=>HOSP_NAMES[h.hospcode]||h.hospcode),
-      datasets:[{label:'ยอดสะสม (ครั้ง)',data:sorted.map(h=>h.totalLatest),
+      datasets:[{label:'ยอดล่าสุด (API)',data:sorted.map(h=>h.totalLatest),
         backgroundColor:'rgba(0,198,255,0.7)',borderRadius:8}]
     },
     options:{responsive:true,
