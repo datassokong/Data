@@ -279,7 +279,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ Deep Scan Filter · Telemedicine Dashboard v5.4<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API · ระบบ Deep Scan Filter · Telemedicine Dashboard v5.5<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -289,30 +289,50 @@
 const SHEET_ID = '1nQ0rWhnqWnd1YlXK-ISKgx6Atv3hUV08o5B0_A05v74';
 const SHEET_KSP = 'กสป';
 
+// 🚀 นำ URL จาก Google Apps Script (Web App) ของคุณมาใส่ที่นี่
+// ตัวอย่าง: 'https://script.google.com/macros/s/AKfycby.../exec'
+const GAS_PROXY_URL = 'https://script.google.com/macros/s/AKfycbwkmGCp4fcmOAflBAaa6xLOfrgZM9Y3-NuIuyQ5TqwHQUqeTUZQquVzyn4utv9lRq4s0w/exec'; 
+
 let hdcChart = null, kspChart = null;
 
-/* ══ 1. FETCH FROM MOPH API (HDC) ══ */
+/* ══ 1. FETCH FROM MOPH API (HDC) + GAS Proxy Support ══ */
 async function fetchHdcApi() {
   return new Promise((resolve, reject) => {
-    const targetUrl = "https://opendata.moph.go.th/api/report_data";
-    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(targetUrl);
-
-    var settings = {
-      "url": proxyUrl,
-      "method": "POST",
-      "headers": { 
-          "Content-Type": "application/json",
-          "Accept": "application/json" 
-      },
-      "data": JSON.stringify({
-        "tableName": "s_telemed_hosp",
-        "year": "2569",
-        "province": "64",
-        "type": "json"
-      }),
-    };
     
-    $.ajax(settings)
+    // ตั้งค่า URL ปลายทางและพารามิเตอร์
+    let requestUrl = "";
+    let ajaxSettings = {};
+
+    const payloadData = JSON.stringify({
+      "tableName": "s_telemed_hosp",
+      "year": "2569",
+      "province": "64",
+      "type": "json"
+    });
+
+    if (GAS_PROXY_URL && GAS_PROXY_URL.trim() !== '') {
+      // 🟢 ใช้ Google Apps Script Proxy (เสถียรสุด ทะลุ Firewall MOPH ได้)
+      requestUrl = GAS_PROXY_URL;
+      ajaxSettings = {
+        "url": requestUrl,
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" },
+        "data": payloadData
+      };
+    } else {
+      // 🟡 ใช้ Public Proxy สำรอง (เปลี่ยนจาก corsproxy.io เป็น codetabs เผื่อเซิร์ฟเวอร์โดนแบน)
+      const targetUrl = "https://opendata.moph.go.th/api/report_data";
+      requestUrl = "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(targetUrl);
+      
+      ajaxSettings = {
+        "url": requestUrl,
+        "method": "POST",
+        "headers": { "Content-Type": "application/json" },
+        "data": payloadData
+      };
+    }
+    
+    $.ajax(ajaxSettings)
       .done(function (response) {
         let parsedData = response;
         if (typeof response === 'string') {
@@ -322,7 +342,7 @@ async function fetchHdcApi() {
         resolve(parsedData);
       })
       .fail(function (jqXHR, textStatus, errorThrown) {
-        reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ")"));
+        reject(new Error("เชื่อมต่อผ่าน Proxy ไม่สำเร็จ (" + textStatus + ") แนะนำให้สร้าง GAS Proxy ครับ"));
       });
   });
 }
@@ -385,6 +405,9 @@ function errorHTML(msg) {
   return `<div class="loading-state">
     <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
     <p style="color:#ff6b6b">${msg}</p>
+    <p style="font-size:.8rem;margin-top:8px;color:var(--text-muted)">
+      <b>คำแนะนำ:</b> แนะนำให้นำ URL จาก Google Apps Script มาใส่ในตัวแปร GAS_PROXY_URL เพื่อแก้ปัญหาถาวร
+    </p>
     <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
   </div>`;
 }
@@ -399,32 +422,27 @@ function renderHdcFromApi(jsonData) {
   else if (jsonData && Array.isArray(jsonData.result)) dataArray = jsonData.result;
 
   if (!dataArray || dataArray.length === 0) {
-    document.getElementById('hdc-content').innerHTML = errorHTML('ไม่พบข้อมูลใน API ที่ส่งกลับมา');
+    document.getElementById('hdc-content').innerHTML = errorHTML('เชื่อมต่อได้ แต่ไม่พบข้อมูลใน API ที่ส่งกลับมา');
     return;
   }
 
-  // 🎯 Deep Scan Filter: กวาดดูข้อความทั้งบรรทัด (ทะลุทุก Key) เพื่อหารายชื่อหน่วยบริการเครือข่ายกงไกรลาศ
+  // 🎯 Deep Scan Filter
   const kkHospNames = ['กงไกรลาศ', 'ไกรใน', 'หนองตูม', 'น้ำเรือง', 'ดงเดือย', 'ปรักรัก', 'ประดู่เฒ่า', 'ป่าแฝก', 'ไกรกลาง', 'ไกรนอก', 'หนองกระทุ่ม', 'ใหม่สุขเกษม', 'กง', 'ท่าฉนวน', 'กกแรต', 'หนองหลอด', '06404'];
   
   let kkDataArray = dataArray.filter(row => {
-    // นำ Object ทั้งบรรทัดมาแปลงเป็น String ก้อนเดียว
     const rowString = JSON.stringify(row).replace(/\s/g, ''); 
-    // ถ้าเจอคำใดคำหนึ่งในลิสต์รายชื่อ ให้ถือว่าเป็นของเครือข่ายกงไกรลาศ
     return kkHospNames.some(name => rowString.includes(name));
   });
 
   if (kkDataArray.length === 0) {
-      console.log("ตัวอย่างข้อมูล API (ไม่ผ่านฟิลเตอร์):", dataArray[0]);
-      document.getElementById('hdc-content').innerHTML = errorHTML(`เชื่อมต่อ API ได้ (${dataArray.length} รายการ) แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอในข้อมูลชุดนี้เลย`);
+      document.getElementById('hdc-content').innerHTML = errorHTML(`เชื่อมต่อ API สำเร็จ (${dataArray.length} รายการ) แต่หาชื่อ รพ.กงไกรลาศ ไม่เจอในข้อมูลชุดนี้`);
       return;
   }
 
-  // ค้นหา Key ที่เก็บชื่อและผลงานอัตโนมัติ (จากก้อนข้อมูลที่กรองแล้ว)
   const sampleKeys = Object.keys(kkDataArray[0]);
   let nameKey = sampleKeys.find(k => /name/i.test(k)) || sampleKeys.find(k => /hosp/i.test(k)) || sampleKeys[0];
   let valKey = sampleKeys.find(k => /result|total|sum|count|value|telemed/i.test(k));
   
-  // กรณีตั้งชื่อ Key แปลกๆ ให้หาคอลัมน์ที่เป็นตัวเลขแทน
   if (!valKey) {
     valKey = sampleKeys.find(k => k !== nameKey && !isNaN(Number(kkDataArray[0][k])));
   }
@@ -466,7 +484,6 @@ function renderHdcFromApi(jsonData) {
     </div>
   `;
 
-  // จัดเรียงข้อมูลจากมากไปน้อย
   const sorted = [...kkDataArray].sort((a,b) => num(b[valKey]) - num(a[valKey]));
   const tbody = document.getElementById('hdc-tbody');
 
@@ -627,7 +644,7 @@ function renderKSP(rows) {
 /* ══ LOAD ALL ══ */
 async function loadAllData() {
   updateDate();
-  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย (ผ่าน Proxy)…</div>';
+  document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API สุโขทัย...</div>';
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
   try {
