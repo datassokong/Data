@@ -22,16 +22,31 @@
   @keyframes orb1{to{transform:translate(60px,40px) scale(1.1)}}
   @keyframes orb2{to{transform:translate(-40px,-60px) scale(1.15)}}
   .wrapper{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:24px 16px 48px}
-  .header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(20px);border-radius:var(--radius);padding:22px 32px;margin-bottom:28px;box-shadow:var(--shadow)}
+  
+  .header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(20px);border-radius:var(--radius);padding:22px 32px;margin-bottom:20px;box-shadow:var(--shadow)}
   .header-left{display:flex;align-items:center;gap:16px}
-  .logo-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--accent1),var(--accent2));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;box-shadow:0 4px 18px rgba(108,99,255,0.45);flex-shrink:0}
   .header-title h1{font-size:clamp(1.1rem,3vw,1.55rem);font-weight:800;letter-spacing:-0.3px}
   .header-title p{font-size:0.82rem;color:var(--text-muted);margin-top:2px}
   .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
   .date-badge{background:rgba(0,198,255,0.12);border:1px solid rgba(0,198,255,0.3);border-radius:999px;padding:6px 18px;font-size:0.82rem;color:var(--accent2);font-weight:600}
   .refresh-btn{background:linear-gradient(135deg,var(--accent1),var(--accent2));border:none;border-radius:999px;color:#fff;font-family:'Sarabun',sans-serif;font-size:0.82rem;font-weight:700;padding:8px 22px;cursor:pointer;transition:opacity .2s,transform .15s;box-shadow:0 4px 16px rgba(108,99,255,0.4)}
   .refresh-btn:hover{opacity:.88;transform:translateY(-1px)}
-  
+
+  /* ── Overall Summary Bar (แถบภาพรวม) ── */
+  .overall-summary-bar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+  .overall-item {
+    flex: 1; min-width: 280px;
+    background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(0,198,255,0.15));
+    border: 1px solid rgba(255,255,255,0.2);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius-sm);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: var(--shadow);
+  }
+  .overall-label { font-size: 0.95rem; color: #fff; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .overall-value { font-size: 1.8rem; font-weight: 800; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+
   .tab-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
   .tab-btn{flex:1 1 calc(25% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
   .tab-btn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(108,99,255,0.45)}
@@ -82,15 +97,30 @@
 <div class="wrapper">
   <div class="header">
     <div class="header-left">
-      <div class="logo-icon">🏥</div>
+      <img src="logo MOPH.png" alt="MOPH Logo" style="width:56px;height:56px;border-radius:14px;object-fit:cover;background:#fff;padding:2px;box-shadow:0 4px 18px rgba(108,99,255,0.45);flex-shrink:0;">
       <div class="header-title">
-        <h1>Telemedicine Dashboard</h1>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <h1>Telemedicine Dashboard</h1>
+          <img src="logo หมอพร้อม.png" alt="หมอพร้อม" style="height:32px; border-radius:6px; object-fit:contain; background:#fff; padding:2px;">
+          <img src="logo สอน บัดดี้.jpg" alt="สอน บัดดี้" style="height:32px; border-radius:6px; object-fit:contain;">
+        </div>
         <p>ระดับอำเภอและระดับจังหวัด · สุโขทัย</p>
       </div>
     </div>
     <div class="header-right">
       <div class="date-badge" id="dateBadge">⏳ กำลังโหลด…</div>
       <button class="refresh-btn" onclick="loadAllData()">🔄 รีเฟรช</button>
+    </div>
+  </div>
+
+  <div class="overall-summary-bar">
+    <div class="overall-item">
+      <div class="overall-label">📊 ภาพรวม จ.สุโขทัย (HDC + กสป)</div>
+      <div class="overall-value" id="overall-prov">กำลังคำนวณ...</div>
+    </div>
+    <div class="overall-item">
+      <div class="overall-label">📊 ภาพรวม อ.กงไกรลาศ (HDC + กสป)</div>
+      <div class="overall-value" id="overall-dist">กำลังคำนวณ...</div>
     </div>
   </div>
 
@@ -115,7 +145,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.2<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.3<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -169,6 +199,24 @@ const DISTRICT_NAMES = {
   '08': 'ศรีนคร',
   '09': 'ทุ่งเสลี่ยม'
 };
+
+// ══════════════════════════════════════════════════════
+// ตัวแปรเก็บผลรวมระดับประเทศ
+// ══════════════════════════════════════════════════════
+let globalTotals = {
+  hdcProv: 0,
+  kspProv: 0,
+  hdcDist: 0,
+  kspDist: 0
+};
+
+function updateOverallTotals() {
+  const provTotal = globalTotals.hdcProv + globalTotals.kspProv;
+  const distTotal = globalTotals.hdcDist + globalTotals.kspDist;
+  
+  document.getElementById('overall-prov').textContent = provTotal > 0 ? provTotal.toLocaleString() + ' ครั้ง' : 'รอข้อมูล...';
+  document.getElementById('overall-dist').textContent = distTotal > 0 ? distTotal.toLocaleString() + ' ครั้ง' : 'รอข้อมูล...';
+}
 
 let hdcChart=null, kspChart=null, hdcProvChart=null, kspProvChart=null;
 
@@ -336,6 +384,10 @@ function renderHdcFromApi(jsonData, sheetRows) {
   });
 
   const totDelta = totAll - prevAll;
+  
+  // อัปเดตยอดรวมระดับอำเภอ
+  globalTotals.hdcDist = totAll;
+  updateOverallTotals();
 
   document.getElementById('hdc-content').innerHTML=`
     <div class="summary-grid">
@@ -419,6 +471,10 @@ function renderKSP(rows){
     if(n.includes('รพ.สต')) totHos+=v; else totRph+=v;
   });
 
+  // อัปเดตยอดรวมระดับอำเภอ
+  globalTotals.kspDist = totAll;
+  updateOverallTotals();
+
   document.getElementById('ksp-content').innerHTML=`
     <div class="summary-grid">
       ${summaryCard('🏥','ยอดรวมอำเภอกงไกรลาศ (กสป)',totAll.toLocaleString(),totAll-prevAll,`อัปเดต: ${header[colL]||'ล่าสุด'}`,'c1')}
@@ -481,7 +537,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
       const hname = String(r.hospname || r.HOSPNAME || r.name || '');
 
       if(ac.startsWith('64') && ac.length >= 4) {
-        const dCode = ac.substring(2,4); 
+        const dCode = ac.substring(2,4); // เช่น '04' คือกงไกรลาศ
         if(byDist[dCode]) {
            byDist[dCode].totalLatest += val;
            if(hname.includes('รพ.สต')||hname.includes('ส่งเสริม')) byDist[dCode].countHos += val;
@@ -491,7 +547,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
     });
   }
 
-  // ดึงยอดก่อนหน้าจาก Sheet HDC
+  // ดึงยอดก่อนหน้าจาก Sheet HDC (โดยดูที่คอลัมน์อำเภอ)
   let datePrevStr = 'ฐานข้อมูล';
   if (sheetRows && sheetRows.length >= 2) {
     let dataStart=1;
@@ -534,6 +590,10 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
   });
 
   const totDelta = totAll - prevAll;
+
+  // อัปเดตยอดรวมระดับจังหวัด
+  globalTotals.hdcProv = totAll;
+  updateOverallTotals();
 
   document.getElementById('hdc-prov-content').innerHTML=`
     <div class="summary-grid">
@@ -607,6 +667,10 @@ function renderKspProv(rows){
   let totAll=0,prevAll=0;
   data.forEach(r=>{ totAll+=num(r[colL]); prevAll+=num(r[colP]); });
 
+  // อัปเดตยอดรวมระดับจังหวัด
+  globalTotals.kspProv = totAll;
+  updateOverallTotals();
+
   document.getElementById('ksp-prov-content').innerHTML=`
     <div class="summary-grid">
       ${summaryCard('🏥','ยอดรวมจังหวัดสุโขทัย (กสป)',totAll.toLocaleString(),totAll-prevAll,`อัปเดต: ${header[colL]||'ล่าสุด'}`,'c1')}
@@ -654,6 +718,10 @@ async function loadAllData(){
   document.getElementById('ksp-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อำเภอ…</div>';
   document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div>';
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
+
+  // รีเซ็ตตัวเลขทั้งหมด
+  globalTotals = { hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0 };
+  updateOverallTotals();
 
   // โหลด HDC API และ Sheet ของอำเภอ
   Promise.all([
