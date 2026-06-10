@@ -48,7 +48,8 @@
   .overall-value { font-size: 1.8rem; font-weight: 800; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.3); }
 
   .tab-bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:28px;background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:blur(16px);border-radius:var(--radius);padding:8px;box-shadow:var(--shadow)}
-  .tab-btn{flex:1 1 calc(25% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
+  /* ปรับ flex-basis เป็น 20% เพื่อให้รองรับ 5 ปุ่มพอดี */
+  .tab-btn{flex:1 1 calc(20% - 10px);min-width:140px;border:none;cursor:pointer;border-radius:var(--radius-sm);padding:12px 10px;font-family:'Sarabun',sans-serif;font-size:0.9rem;font-weight:700;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--text-muted)}
   .tab-btn.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(108,99,255,0.45)}
   .tab-btn:not(.active):hover{background:rgba(255,255,255,0.08);color:#fff}
   
@@ -139,6 +140,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('hdc-prov',this)">📊 HDC จ.สุโขทัย</button>
     <button class="tab-btn" onclick="switchTab('ksp-prov',this)">🗂️ กสป จ.สุโขทัย</button>
+    <button class="tab-btn" onclick="switchTab('total-dist',this)">🏆 รวมผลงาน อ.กงไกรลาศ</button>
     <button class="tab-btn" onclick="switchTab('hdc',this)">📊 HDC อ.กงไกรลาศ</button>
     <button class="tab-btn" onclick="switchTab('ksp',this)">🗂️ กสป อ.กงไกรลาศ</button>
   </div>
@@ -149,6 +151,9 @@
   <div class="panel" id="panel-ksp-prov">
     <div id="ksp-prov-content"><div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อำเภอ…</div></div>
   </div>
+  <div class="panel" id="panel-total-dist">
+    <div id="total-dist-content"><div class="loading-state"><div class="spinner"></div>กำลังประมวลผลข้อมูลรวม 16 แห่ง...</div></div>
+  </div>
   <div class="panel" id="panel-hdc">
     <div id="hdc-content"><div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div></div>
   </div>
@@ -157,7 +162,7 @@
   </div>
 
   <div class="footer">
-    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v7.7<br>
+    ดึงข้อมูลสดผ่าน MOPH OpenData API และ Google Sheets · Telemedicine Dashboard v8.0<br>
     ผู้ดูแลระบบ: อนันต์ มิตคำ
   </div>
 </div>
@@ -197,28 +202,22 @@ const HOSP_NAMES = {
   '14047': 'รพ.สต.บ้านหนองหลอด'
 };
 
-// ══════════════════════════════════════════════════════
-// การตั้งค่าระดับจังหวัด 9 อำเภอ
-// ══════════════════════════════════════════════════════
 const DISTRICT_NAMES = {
-  '01': 'เมืองสุโขทัย',
-  '02': 'บ้านด่านลานหอย',
-  '03': 'คีรีมาศ',
-  '04': 'กงไกรลาศ',
-  '05': 'ศรีสัชนาลัย',
-  '06': 'ศรีสำโรง',
-  '07': 'สวรรคโลก',
-  '08': 'ศรีนคร',
-  '09': 'ทุ่งเสลี่ยม'
+  '01': 'เมืองสุโขทัย', '02': 'บ้านด่านลานหอย', '03': 'คีรีมาศ',
+  '04': 'กงไกรลาศ', '05': 'ศรีสัชนาลัย', '06': 'ศรีสำโรง',
+  '07': 'สวรรคโลก', '08': 'ศรีนคร', '09': 'ทุ่งเสลี่ยม'
 };
 
 // ══════════════════════════════════════════════════════
-// ตัวแปรเก็บผลรวมระดับประเทศ (แยกยอดล่าสุด และ ยอดก่อนหน้า)
+// ตัวแปรเก็บผลรวมระดับประเทศ และ ตัวแปรสำหรับผสานข้อมูล 16 แห่ง
 // ══════════════════════════════════════════════════════
 let globalTotals = {
   hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0,
   hdcProvPrev: 0, kspProvPrev: 0, hdcDistPrev: 0, kspDistPrev: 0
 };
+
+let combinedDistData = {};
+let combinedDistLoaded = { hdc: false, ksp: false };
 
 function updateOverallTotals() {
   const provTotal = globalTotals.hdcProv + globalTotals.kspProv;
@@ -242,7 +241,7 @@ function updateOverallTotals() {
   document.getElementById('overall-dist').innerHTML = distHtml;
 }
 
-let hdcChart=null, kspChart=null, hdcProvChart=null, kspProvChart=null;
+let hdcChart=null, kspChart=null, hdcProvChart=null, kspProvChart=null, totalDistChart=null;
 
 /* ── Helpers ── */
 function num(v){
@@ -277,6 +276,28 @@ function errorHTML(msg,debug){
     <p style="color:#ff6b6b">${msg}</p>
     <button class="refresh-btn" style="margin-top:16px" onclick="loadAllData()">ลองใหม่</button>
   </div>`;
+}
+
+function getHospcodeByName(n) {
+  if(!n) return null;
+  n = n.replace(/\s/g, '');
+  if(n.includes('ประดู่เฒ่า')) return '07402';
+  if(n.includes('กง') && !n.includes('กงไกรลาศ')) return '07403';
+  if(n.includes('ไกรนอก')) return '07404';
+  if(n.includes('ไกรกลาง')) return '07405';
+  if(n.includes('ไกรใน')) return '07406';
+  if(n.includes('หนองกระทุ่ม')) return '07407';
+  if(n.includes('ดงเดือย')) return '07408';
+  if(n.includes('ป่าแฝก')) return '07409';
+  if(n.includes('ปรักรัก')) return '07410';
+  if(n.includes('กกแรต')) return '07411';
+  if(n.includes('ท่าฉนวน')) return '07412';
+  if(n.includes('น้ำเรื่อง') || n.includes('น้ำเรือง')) return '07413';
+  if(n.includes('หนองตูม')) return '07414';
+  if(n.includes('ใหม่สุขเกษม')) return '07415';
+  if(n.includes('หนองหลอด')) return '14047';
+  if(n.includes('กงไกรลาศ') || n.includes('11246')) return '11246';
+  return null;
 }
 
 /* ══════════════════════════════════════════
@@ -372,24 +393,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
       const n = (r[colD]||'').replace(/\s/g, '');
       const v = num(r[colL]); 
       
-      let matchedHc = null;
-      if(n.includes('ประดู่เฒ่า')) matchedHc = '07402';
-      else if(n.includes('กง') && !n.includes('กงไกรลาศ')) matchedHc = '07403';
-      else if(n.includes('ไกรนอก')) matchedHc = '07404';
-      else if(n.includes('ไกรกลาง')) matchedHc = '07405';
-      else if(n.includes('ไกรใน')) matchedHc = '07406';
-      else if(n.includes('หนองกระทุ่ม')) matchedHc = '07407';
-      else if(n.includes('ดงเดือย')) matchedHc = '07408';
-      else if(n.includes('ป่าแฝก')) matchedHc = '07409';
-      else if(n.includes('ปรักรัก')) matchedHc = '07410';
-      else if(n.includes('กกแรต')) matchedHc = '07411';
-      else if(n.includes('ท่าฉนวน')) matchedHc = '07412';
-      else if(n.includes('น้ำเรื่อง') || n.includes('น้ำเรือง')) matchedHc = '07413';
-      else if(n.includes('หนองตูม')) matchedHc = '07414';
-      else if(n.includes('ใหม่สุขเกษม')) matchedHc = '07415';
-      else if(n.includes('หนองหลอด')) matchedHc = '14047';
-      else if(n.includes('กงไกรลาศ') || n.includes('11246')) matchedHc = '11246';
-      
+      let matchedHc = getHospcodeByName(n);
       if (matchedHc && byHosp[matchedHc]) byHosp[matchedHc].totalPrev = v;
     });
   } else {
@@ -414,6 +418,16 @@ function renderHdcFromApi(jsonData, sheetRows) {
   globalTotals.hdcDistPrev = prevAll;
   updateOverallTotals();
 
+  // จัดเก็บข้อมูลลงตัวแปรกลางเพื่อรอ Render หน้า 3 (ผลงานรวม)
+  hosps.forEach(h => {
+    if(combinedDistData[h.hospcode]) {
+      combinedDistData[h.hospcode].hdcLatest = h.totalLatest;
+      combinedDistData[h.hospcode].hdcPrev = h.totalPrev;
+    }
+  });
+  combinedDistLoaded.hdc = true;
+  if(combinedDistLoaded.hdc && combinedDistLoaded.ksp) renderTotalDist();
+
   document.getElementById('hdc-content').innerHTML=`
     <div class="summary-grid">
       ${summaryCard('🏥','ยอดรวมอำเภอกงไกรลาศ (HDC)',totAll.toLocaleString(),totDelta,`อัปเดต: ปัจจุบัน (API)`,'c1')}
@@ -423,7 +437,7 @@ function renderHdcFromApi(jsonData, sheetRows) {
     </div>
     <div class="section-title">📊 กราฟผลงานหน่วยบริการ อ.กงไกรลาศ (HDC API)</div>
     <div class="chart-card"><canvas id="hdcBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ (HDC)</div>
     <div class="table-card"><table>
       <thead><tr>
         <th>#</th><th>หน่วยบริการ</th>
@@ -494,12 +508,22 @@ function renderKSP(rows){
     const v=num(r[colL]),p=num(r[colP]),n=r[colD]||'';
     totAll+=v;prevAll+=p;
     if(n.includes('รพ.สต')) totHos+=v; else totRph+=v;
+    
+    // จัดเก็บข้อมูลลงตัวแปรกลางเพื่อรอ Render หน้า 3
+    let matchedHc = getHospcodeByName(n);
+    if(matchedHc && combinedDistData[matchedHc]) {
+        combinedDistData[matchedHc].kspLatest += v;
+        combinedDistData[matchedHc].kspPrev += p;
+    }
   });
 
   // อัปเดตยอดรวมระดับอำเภอ
   globalTotals.kspDist = totAll;
   globalTotals.kspDistPrev = prevAll;
   updateOverallTotals();
+
+  combinedDistLoaded.ksp = true;
+  if(combinedDistLoaded.hdc && combinedDistLoaded.ksp) renderTotalDist();
 
   document.getElementById('ksp-content').innerHTML=`
     <div class="summary-grid">
@@ -510,7 +534,7 @@ function renderKSP(rows){
     </div>
     <div class="section-title">📊 กราฟผลงานหน่วยบริการ อ.กงไกรลาศ (${header[colL]||'ล่าสุด'})</div>
     <div class="chart-card"><canvas id="kspBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบ อ.กงไกรลาศ (กสป)</div>
     <div class="table-card"><table>
       <thead><tr><th>#</th><th>หน่วยบริการ</th>
         <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${header[colP]||'ก่อนหน้า'}</span></th>
@@ -544,7 +568,75 @@ function renderKSP(rows){
 }
 
 /* ══════════════════════════════════════════
-   3. RENDER HDC จ.สุโขทัย (HDC Province)
+   3. RENDER รวมผลงาน อ.กงไกรลาศ (HDC + KSP)
+══════════════════════════════════════════ */
+function renderTotalDist() {
+  const hosps = Object.values(combinedDistData);
+  let totAll = 0, prevAll = 0, totRph = 0, totHos = 0;
+  
+  hosps.forEach(h => {
+    h.totalLatest = h.hdcLatest + h.kspLatest;
+    h.totalPrev = h.hdcPrev + h.kspPrev;
+    
+    totAll += h.totalLatest;
+    prevAll += h.totalPrev;
+    
+    const name = h.name;
+    if(name.includes('รพ.สต') || name.includes('ส่งเสริม')) totHos += h.totalLatest;
+    else totRph += h.totalLatest;
+  });
+
+  const totDelta = totAll - prevAll;
+
+  document.getElementById('total-dist-content').innerHTML=`
+    <div class="summary-grid">
+      ${summaryCard('🏥','ผลงานรวมอำเภอ (HDC+กสป)',totAll.toLocaleString(),totDelta,`อัปเดต: ล่าสุด`,'c1')}
+      ${summaryCard('🏢','ร.พ.กงไกรลาศ (HDC+กสป)',totRph.toLocaleString(),0,'สะสม','c2')}
+      ${summaryCard('🏘️','รวม รพ.สต. (HDC+กสป)',totHos.toLocaleString(),0,'สะสม','c3')}
+      ${summaryCard('📍','จำนวนหน่วยบริการ',hosps.length,0,'แห่ง','c4')}
+    </div>
+    <div class="section-title">📊 กราฟผลงานรวมหน่วยบริการ อ.กงไกรลาศ (HDC + กสป)</div>
+    <div class="chart-card"><canvas id="totalDistBarChart"></canvas></div>
+    <div class="section-title">📋 ตารางเปรียบเทียบผลงานรวม 16 แห่ง (HDC + กสป)</div>
+    <div class="table-card"><table>
+      <thead><tr>
+        <th>#</th><th>หน่วยบริการ</th>
+        <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">รวมฐานข้อมูลเดิม</span></th>
+        <th>ยอดล่าสุด<br><span style="font-size:.65rem;color:var(--accent3)">รวมปัจจุบัน</span></th>
+        <th>ส่วนต่าง</th>
+      </tr></thead>
+      <tbody id="total-dist-tbody"></tbody>
+    </table></div>`;
+
+  const sorted = [...hosps].sort((a,b) => b.totalLatest - a.totalLatest);
+  const tbody = document.getElementById('total-dist-tbody');
+  
+  sorted.forEach((h,i) => {
+    const isMe = h.name.includes('กงไกรลาศ');
+    const p = h.totalPrev, t = h.totalLatest, d = t - p;
+    const badge = d > 0 ? `<span class="tag-up">+${d.toLocaleString()}</span>` : d < 0 ? `<span class="tag-down">${d.toLocaleString()}</span>` : `<span class="tag-zero">±0</span>`;
+    
+    tbody.innerHTML += `<tr class="${isMe ? 'highlight-row' : ''}">
+      <td style="color:var(--text-muted)">${i+1}</td>
+      <td><strong>${h.name}</strong> ${isMe ? '<span style="color:var(--accent2);font-size:.7rem">◀ เรา</span>' : ''}</td>
+      <td>${p.toLocaleString()}</td>
+      <td><strong>${t.toLocaleString()}</strong></td>
+      <td>${badge}</td>
+    </tr>`;
+  });
+
+  if(totalDistChart) totalDistChart.destroy();
+  totalDistChart=new Chart(document.getElementById('totalDistBarChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:sorted.map(h=>h.name),
+      datasets:[{label:'ยอดรวม (HDC+กสป)',data:sorted.map(h=>h.totalLatest),backgroundColor:'rgba(67, 233, 123, 0.7)',borderRadius:8}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:'#fff',font:{family:'Sarabun'}}}},
+      scales:{x:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'},maxRotation:45}},y:{ticks:{color:'rgba(255,255,255,.65)',font:{family:'Sarabun'}}}}}
+  });
+}
+
+/* ══════════════════════════════════════════
+   4. RENDER HDC จ.สุโขทัย (HDC Province)
 ══════════════════════════════════════════ */
 function renderHdcProvFromApi(jsonData, sheetRows) {
   // สร้างโครงสร้าง 9 อำเภอรอไว้
@@ -573,7 +665,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
     });
   }
 
-  // ดึงยอดก่อนหน้าจาก Sheet HDC (โดยดูที่คอลัมน์อำเภอ)
+  // ดึงยอดก่อนหน้าจาก Sheet HDC
   let datePrevStr = 'ฐานข้อมูล';
   if (sheetRows && sheetRows.length >= 2) {
     let dataStart=1;
@@ -631,7 +723,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
     </div>
     <div class="section-title">📊 กราฟผลงานระดับอำเภอ (HDC API)</div>
     <div class="chart-card"><canvas id="hdcProvBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ (HDC)</div>
     <div class="table-card"><table>
       <thead><tr>
         <th>#</th><th>อำเภอ</th>
@@ -670,7 +762,7 @@ function renderHdcProvFromApi(jsonData, sheetRows) {
 }
 
 /* ══════════════════════════════════════════
-   4. RENDER กสป จ.สุโขทัย (KSP Province) ดึงจาก "กสป อำเภอ"
+   5. RENDER กสป จ.สุโขทัย (KSP Province) ดึงจาก "กสป อำเภอ"
 ══════════════════════════════════════════ */
 function renderKspProv(rows){
   if(!rows||rows.length<2){
@@ -706,7 +798,7 @@ function renderKspProv(rows){
     </div>
     <div class="section-title">📊 กราฟผลงานระดับอำเภอ (${header[colL]||'ล่าสุด'})</div>
     <div class="chart-card"><canvas id="kspProvBarChart"></canvas></div>
-    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ</div>
+    <div class="section-title">📋 ตารางเปรียบเทียบระดับอำเภอ (กสป)</div>
     <div class="table-card"><table>
       <thead><tr><th>#</th><th>อำเภอ</th>
         <th>ยอดก่อนหน้า<br><span style="font-size:.65rem;opacity:.7">${header[colP]||'ก่อนหน้า'}</span></th>
@@ -744,11 +836,15 @@ async function loadAllData(){
   updateDate();
   document.getElementById('hdc-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังรวบรวมข้อมูลระดับจังหวัด...</div>';
   document.getElementById('ksp-prov-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป อำเภอ…</div>';
+  document.getElementById('total-dist-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังประมวลผลข้อมูลรวม 16 แห่ง...</div>';
   document.getElementById('hdc-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังเชื่อมต่อ HDC API...</div>';
   document.getElementById('ksp-content').innerHTML = '<div class="loading-state"><div class="spinner"></div>กำลังดึงข้อมูล กสป…</div>';
 
-  // รีเซ็ตตัวเลขทั้งหมด
+  // รีเซ็ตตัวแปรประมวลผลทั้งหมด
   globalTotals = { hdcProv: 0, kspProv: 0, hdcDist: 0, kspDist: 0, hdcProvPrev: 0, kspProvPrev: 0, hdcDistPrev: 0, kspDistPrev: 0 };
+  combinedDistData = {};
+  Object.keys(HOSP_NAMES).forEach(hc => { combinedDistData[hc] = { hospcode: hc, name: HOSP_NAMES[hc], hdcLatest: 0, hdcPrev: 0, kspLatest: 0, kspPrev: 0 }; });
+  combinedDistLoaded = { hdc: false, ksp: false };
   updateOverallTotals();
 
   // โหลด HDC API และ Sheet ของอำเภอ
@@ -756,8 +852,8 @@ async function loadAllData(){
     fetchHdcApi().catch(e => { throw e; }),
     fetchSheetFixed('HDC').catch(e => null) 
   ]).then(([apiData, sheetData]) => {
-    renderHdcProvFromApi(apiData, sheetData); // หน้า 1 (ระดับจังหวัด)
-    renderHdcFromApi(apiData, sheetData); // หน้า 3 (อ.กงไกรลาศ)
+    renderHdcProvFromApi(apiData, sheetData); // ระดับจังหวัด
+    renderHdcFromApi(apiData, sheetData); // อ.กงไกรลาศ (HDC)
   }).catch(e => {
     console.error(e);
     document.getElementById('hdc-prov-content').innerHTML = errorHTML('โหลดข้อมูล API HDC ระดับจังหวัด ไม่สำเร็จ: '+e.message);
